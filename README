@@ -1,7 +1,9 @@
 pms
 ===
-version 0.18.39
+version 0.18.40
 
+.. image:: http://badge.fury.io/py/Poor-Mans-Spotify.png
+    :target: https://pypi.python.org/pypi/Poor-Mans-Spotify
 .. image:: https://pypip.in/d/Poor-Mans-Spotify/badge.png
     :target: https://pypi.python.org/pypi/Poor-Mans-Spotify
 
@@ -240,13 +242,13 @@ If you have `mpv <http://mpv.io>`_ installed and want to use that instead of mpl
 
 From within pms::
 
-    set PLAYER "mpv"
-    set PLAYERARGS "-really-quiet"
+    set player mpv
+    set playerargs -really-quiet
 
 Other Configuration
 ~~~~~~~~~~~~~~~~~~~
 
-To view configuration, enter ``showconfig`` and to change any item enter: 
-``set <item> "value"``.  This can be used to change the download path (DDIR)
+To view configuration, enter ``set`` and to change any item enter: 
+``set <item> <value>``.  This can be used to change the download path (DDIR)
 and will persist after exiting the program.  To reset all settings to default,
-use ``set all "default"`` or for a single item, ``set <item> "default"``
+use ``set all default`` or for a single item, ``set <item> default``

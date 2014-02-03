@@ -14,7 +14,7 @@ except ImportError:
 
 setup(
     name="Poor-Mans-Spotify",
-    version="0.18.39",
+    version="0.18.40",
     description="Search, Stream and Download MP3",
     keywords=["MP3", "music", "audio", "search", "stream", "download"],
     author="nagev",
