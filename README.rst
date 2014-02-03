@@ -2,6 +2,9 @@ pms
 ===
 version 0.18.40
 
+[UPDATE 3/Feb/2014 - see `pms-youtube <https://github.com/np1/pms-youtube>`_
+for accessing youtube content]
+
 .. image:: http://badge.fury.io/py/Poor-Mans-Spotify.png
     :target: https://pypi.python.org/pypi/Poor-Mans-Spotify
 .. image:: https://pypip.in/d/Poor-Mans-Spotify/badge.png
