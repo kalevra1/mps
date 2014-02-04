@@ -120,7 +120,7 @@ def get_config_dir():
     pmsd = os.path.join(confd, "pms")
 
     if not os.path.exists(pmsd):
-        os.mkdir(pmsd)
+        os.makedirs(pmsd)
 
     return pmsd
 
