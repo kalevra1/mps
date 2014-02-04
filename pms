@@ -96,13 +96,14 @@ def get_default_ddir():
     if mswin:
         return os.path.join(os.path.expanduser("~"), "Downloads", "PMS")
 
-    USER_DIRS = os.path.join(os.path.expanduser("~"), ".config", "user-dirs.dir")
+    USER_DIRS = os.path.join(os.path.expanduser("~"), ".config", "user-dirs.dirs")
+    DOWNLOAD_HOME = os.path.join(os.path.expanduser("~"), "Downloads")
 
     if 'XDG_DOWNLOAD_DIR' in os.environ:
         ddir = os.environ['XDG_DOWNLOAD_DIR']
     elif os.path.exists(USER_DIRS):
         lines = open(USER_DIRS).readlines()
-        defn = filter(lambda x: x.startswith("XDG_DOWNLOAD_DIR"), lines)
+        defn = [x for x in lines if x.startswith("XDG_DOWNLOAD_DIR")]
 
         if len(defn) == 0:
             ddir = os.path.expanduser("~")
@@ -110,6 +111,8 @@ def get_default_ddir():
             ddir = defn[0].split("=")[1]\
                     .replace('"', '')\
                     .replace("$HOME", os.path.expanduser("~"))
+    elif os.path.exists(DOWNLOAD_HOME):
+        ddir = DOWNLOAD_HOME
     else:
         ddir = os.path.expanduser("~")
 
