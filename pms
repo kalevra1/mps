@@ -93,10 +93,25 @@ def mswinfn(filename):
 def get_default_ddir():
     """ Get system default Download directory, append PMS dir. """
 
+    if mswin:
+        return os.path.join(os.path.expanduser("~"), "Downloads", "PMS")
+
+    USER_DIRS = os.path.join(os.path.expanduser("~"), ".config", "user-dirs.dir")
+
     if 'XDG_DOWNLOAD_DIR' in os.environ:
         ddir = os.environ['XDG_DOWNLOAD_DIR']
+    elif os.path.exists(USER_DIRS):
+        lines = open(USER_DIRS).readlines()
+        defn = filter(lambda x: x.startswith("XDG_DOWNLOAD_DIR"), lines)
+
+        if len(defn) == 0:
+            ddir = os.path.expanduser("~")
+        else:
+            ddir = defn[0].split("=")[1]\
+                    .replace('"', '')\
+                    .replace("$HOME", os.path.expanduser("~"))
     else:
-        ddir = os.path.join(os.path.expanduser("~"), "Downloads")
+        ddir = os.path.expanduser("~")
 
     return os.path.join(ddir, "PMS")
 
@@ -882,8 +897,7 @@ def _make_fname(song):
     """" Create download directory, generate filename. """
 
     if not os.path.exists(Config.DDIR):
-        g.message = c.r + "Download folder %s doesn't exist" % Config.DDIR + c.w
-        return None
+        os.makedirs(Config.DDIR)
 
     filename = song['singer'][:49] + " - " + song['song'][:49] + ".mp3"
     filename = os.path.join(Config.DDIR, mswinfn(filename.replace("/", "-")))
@@ -1229,9 +1243,6 @@ def download(num):
 
     song = (g.model.songs[int(num) - 1])
     filename = _make_fname(song)
-
-    if not filename:
-        return
 
     try:
         f = _download(song, filename)
