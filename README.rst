@@ -246,7 +246,7 @@ If you have `mpv <http://mpv.io>`_ installed and want to use that instead of mpl
 From within pms::
 
     set player mpv
-    set playerargs -really-quiet
+    set playerargs --really-quiet --no-video
 
 Other Configuration
 ~~~~~~~~~~~~~~~~~~~
