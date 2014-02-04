@@ -105,6 +105,25 @@ def get_default_ddir():
 
     return os.path.join(ddir, "PMS")
 
+def get_config_dir():
+    """ Get user configuration directory, append PMS dir. """
+
+    if mswin:
+        # AppData\Roaming on Windows 7
+        confd = os.environ["APPDATA"]
+    else:
+        if "XDG_CONFIG_HOME" in os.environ:
+            confd = os.environ["XDG_CONFIG_HOME"]
+        else:
+            confd = os.path.join(os.environ["HOME"], ".config")
+
+    pmsd = os.path.join(confd, "pms")
+
+    if not os.path.exists(pmsd):
+        os.mkdir(pmsd)
+
+    return pmsd
+
 
 class Config(object):
 
@@ -185,8 +204,11 @@ class g(object):
     config = [x for x in sorted(dir(Config)) if member_var(x)]
     configbool = [x for x in config if type(getattr(Config, x)) is bool]
     defaults = {setting: getattr(Config, setting) for setting in config}
-    CFFILE = os.path.join(os.path.expanduser("~"), ".pms-config")
-    PLFILE = os.path.join(os.path.expanduser("~"), ".pms-playlist")
+    CFFILE = os.path.join(get_config_dir(), "config")
+    PLFILE = os.path.join(get_config_dir(), "playlist")
+    OLD_CFFILE = os.path.join(os.path.expanduser("~"), ".pms-config")
+    OLD_PLFILE = os.path.join(os.path.expanduser("~"), ".pms-playlist")
+
 
 
 def showconfig(_):
@@ -211,13 +233,20 @@ def saveconfig():
 
 
 # override config if config file exists
-if os.path.exists(g.CFFILE):
-    # load and set config
-    saved_config = pickle.load(open(g.CFFILE, "rb"))
+def loadconfig(pfile):
+    """ Load config from file. """
 
+    saved_config = pickle.load(open(pfile, "rb"))
     for kk, vv in saved_config.items():
         setattr(Config, kk, vv)
 
+# Account for old versions
+if os.path.exists(g.CFFILE):
+    loadconfig(g.CFFILE)
+elif os.path.exists(g.OLD_CFFILE):
+    loadconfig(g.OLD_CFFILE)
+    saveconfig()
+    os.remove(g.OLD_CFFILE)
 
 class c(object):
 
@@ -446,14 +475,27 @@ def save_to_file():
     pickle.dump(g.userpl, f, protocol=2)
 
 
+def load_playlist(pfile):
+    """ Load pickled playlist file. """
+
+    try:
+        f = open(pfile, "rb")
+        g.userpl = pickle.load(f)
+    except IOError:
+        g.userpl = {}
+        save_to_file()
+
+
 def open_from_file():
     """ Open playlists. Called once on script invocation. """
 
-    try:
-        f = open(g.PLFILE, "rb")
-        g.userpl = pickle.load(f)
-
-    except IOError:
+    if os.path.exists(g.PLFILE):
+        load_playlist(g.PLFILE)
+    elif os.path.exists(g.OLD_PLFILE):
+        load_playlist(g.OLD_PLFILE)
+        save_to_file()
+        os.remove(g.OLD_PLFILE)
+    else:
         g.userpl = {}
         save_to_file()
 
