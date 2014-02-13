@@ -152,7 +152,7 @@ class Config(object):
     DDIR = get_default_ddir()
 
 
-if os.path.exists(os.path.join(os.path.expanduser("~"), ".pms-debug")):
+if os.eniron.get("mpsyt-debug") == 1:
     logging.basicConfig(level=logging.DEBUG)
 
 if not mswin:
