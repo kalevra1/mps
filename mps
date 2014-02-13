@@ -91,10 +91,10 @@ def mswinfn(filename):
 
 
 def get_default_ddir():
-    """ Get system default Download directory, append PMS dir. """
+    """ Get system default Download directory, append mps dir. """
 
     if mswin:
-        return os.path.join(os.path.expanduser("~"), "Downloads", "PMS")
+        return os.path.join(os.path.expanduser("~"), "Downloads", "mps")
 
     USER_DIRS = os.path.join(os.path.expanduser("~"), ".config", "user-dirs.dirs")
     DOWNLOAD_HOME = os.path.join(os.path.expanduser("~"), "Downloads")
@@ -117,11 +117,11 @@ def get_default_ddir():
         ddir = os.path.expanduser("~")
 
     ddir = py2utf8_decode(ddir)
-    return os.path.join(ddir, "PMS")
+    return os.path.join(ddir, "mps")
 
 
 def get_config_dir():
-    """ Get user configuration directory, append PMS dir. """
+    """ Get user configuration directory.  Create if needed. """
 
     if mswin:
         # AppData\Roaming on Windows 7
@@ -132,12 +132,16 @@ def get_config_dir():
         else:
             confd = os.path.join(os.environ["HOME"], ".config")
 
-    pmsd = os.path.join(confd, "pms")
+    oldd = os.path.join(confd, "pms")
+    mpsd = os.path.join(confd, "mps")
 
-    if not os.path.exists(pmsd):
-        os.makedirs(pmsd)
+    if os.path.exists(oldd) and not os.path.exists(mpsd):
+        os.rename(oldd, mpsd)
 
-    return pmsd
+    elif not os.path.exists(mpsd):
+        os.makedirs(mpsd)
+
+    return mpsd
 
 
 class Config(object):
@@ -152,7 +156,7 @@ class Config(object):
     DDIR = get_default_ddir()
 
 
-if os.eniron.get("mpsyt-debug") == 1:
+if os.environ.get("mps-debug") == 1:
     logging.basicConfig(level=logging.DEBUG)
 
 if not mswin:
