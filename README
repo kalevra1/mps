@@ -2,6 +2,10 @@ pms
 ===
 version 0.18.41
 
+[UPDATE 13/Feb/2014: To assist with packaging and resolve a nameclash with
+other software, this program is being renamed to mps.  The rebranding is
+underway and partially complete, sorry for any confusion!]
+
 [UPDATE 3/Feb/2014 - see `pms-youtube <https://github.com/np1/pms-youtube>`_
 for accessing youtube content]
 
