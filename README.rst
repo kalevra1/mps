@@ -1,18 +1,17 @@
-pms
+mps
 ===
-version 0.18.41
+version 0.20.00
 
 [UPDATE 13/Feb/2014: To assist with packaging and resolve a nameclash with
-other software, this program is being renamed to mps.  The rebranding is
-underway and partially complete, sorry for any confusion!]
+other software, this program has been renamed from pms to mps]
 
-[UPDATE 3/Feb/2014 - see `pms-youtube <https://github.com/np1/pms-youtube>`_
+[UPDATE 3/Feb/2014 - see `mps-youtube <https://github.com/np1/mps-youtube>`_
 for accessing youtube content]
 
-.. image:: http://badge.fury.io/py/Poor-Mans-Spotify.png
-    :target: https://pypi.python.org/pypi/Poor-Mans-Spotify
-.. image:: https://pypip.in/d/Poor-Mans-Spotify/badge.png
-    :target: https://pypi.python.org/pypi/Poor-Mans-Spotify
+.. image:: http://badge.fury.io/py/mps.png
+    :target: https://pypi.python.org/pypi/mps
+.. image:: https://pypip.in/d/mps.png
+    :target: https://pypi.python.org/pypi/mps
 
 Features
 --------
@@ -49,19 +48,19 @@ Installation
 
 Using `pip <http://www.pip-installer.org>`_::
     
-    sudo pip install Poor-Mans-Spotify
+    sudo pip install mps
 
 Using `git <http://www.git-scm.com>`_::
 
-    git clone https://github.com/np1/pms.git
+    git clone https://github.com/np1/mps.git
    
 Manually::
 
     Download zip file or tar.gz and extract:
 
-    https://github.com/np1/pms/archive/master.zip
+    https://github.com/np1/mps/archive/master.zip
 
-    https://github.com/np1/pms/archive/master.tar.gz
+    https://github.com/np1/mps/archive/master.tar.gz
 
 
 Mac OS X installation notes
@@ -82,7 +81,7 @@ Install the python `colorama <https://pypi.python.org/pypi/colorama>`_ module to
 Download mplayer for your CPU type from the "Build Selection table" `here
 <http://oss.netfarm.it/mplayer-win32.php>`_. 
 
-Extract the mplayer.exe file, saving it to your pms directory
+Extract the mplayer.exe file, saving it to your mps directory
 
 
 Upgrading
@@ -92,24 +91,24 @@ It is recommended you update to the latest version.
 
 Upgrade pip installation::
 
-    sudo pip install Poor-Mans-Spotify --upgrade
+    sudo pip install mps --upgrade
 
 Upgrade git clone::
 
-    (from within the pms directory)
+    (from within the mps directory)
 
     git pull
 
 Usage
 -----
 
-pms is run on the command line using the command::
+mps is run on the command line using the command::
     
-    pms
+    mps
     
 or on Linux/MacOS if you are in the same directory::
 
-    ./pms
+    ./mps
     
 Enter ``h`` from within the program for help.
 
@@ -212,21 +211,21 @@ matching playlist will be opened / displayed.
 Invocation
 ~~~~~~~~~~
 
-To play a saved playlist when invoking pms use the following command:
+To play a saved playlist when invoking mps use the following command:
 
-    ``pms play <playlistname>``
+    ``mps play <playlistname>``
 
 This also works for other commands, eg:
 
-    ``pms .mozart`` to search 
+    ``mps .mozart`` to search 
 
-    ``pms view <playlistname>`` to view a saved playlist
+    ``mps view <playlistname>`` to view a saved playlist
 
-    ``pms ls`` to list saved playlists
+    ``mps ls`` to list saved playlists
 
-    ``pms top`` to list top tracks this week
+    ``mps top`` to list top tracks this week
 
-    ``pms open moz`` to open a saved playlist called mozart.
+    ``mps open moz`` to open a saved playlist called mozart.
 
 Specifying Ranges
 ~~~~~~~~~~~~~~~~~
@@ -247,7 +246,7 @@ Using MPV instead of MPlayer
 
 If you have `mpv <http://mpv.io>`_ installed and want to use that instead of mplayer;
 
-From within pms::
+From within mps::
 
     set player mpv
     set playerargs --really-quiet --no-video
