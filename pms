@@ -1,0 +1,30 @@
+#!/usr/bin/env python
+
+from __future__ import print_function
+
+text = """\
+
+Hi,
+
+To resolve a name-clash with other software and to aid in packaging for various
+linux distributions this application has been renamed to * mps *
+
+If you installed it using pip, you can get the latest version using these steps:
+
+        sudo pip uninstall Poor-Mans-Spotify
+        sudo pip install mps
+
+and to upgrade in the future, use;
+
+        sudo pip install mps --upgrade
+
+
+All the best,
+nagev (@devnp1)
+
+For further info, see:
+    https://github.com/np1/mps
+    https://pypi.python.org/pypi/mps
+"""
+
+print(text)
