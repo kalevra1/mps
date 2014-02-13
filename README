@@ -1,6 +1,6 @@
 pms
 ===
-version 0.18.40
+version 0.18.41
 
 [UPDATE 3/Feb/2014 - see `pms-youtube <https://github.com/np1/pms-youtube>`_
 for accessing youtube content]
