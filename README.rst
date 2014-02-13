@@ -1,6 +1,6 @@
 mps
 ===
-version 0.18.41
+version 0.20.00
 
 [UPDATE 3/Feb/2014 - see `mps-youtube <https://github.com/np1/mps-youtube>`_
 for accessing youtube content]
