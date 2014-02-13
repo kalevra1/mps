@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
 """
-pms.
+mps.
 
-https://github.com/np1/pms
+https://github.com/np1/mps
 
 Copyright (C)  2013-2014 nagev
 
@@ -346,7 +346,7 @@ def setconfig(key, val):
 
 
 HELP = """
-Note: More documentation is available at {3}https://github.com/np1/pms{1}
+Note: More documentation is available at {3}https://github.com/np1/mps{1}
 {0}Searching{1}
 You can enter an artist/song name to search whenever the program is expecting
 text input. Searches must be prefixed with either a {2}.{1} or {2}/{1} \
@@ -421,7 +421,7 @@ def F(key, nb=0, na=0, percent=r"\*", nums=r"\*\*", textlib=None):
 
 g.text = {
     "exitmsg": """\
-**0pms - **1http://github.com/np1/pms**0
+**0mps - **1http://github.com/np1/mps**0
 Released under the GPLv3 license
 (c) 2013-2014 nagev**2\n""",
     "_exitmsg": (c.r, c.b, c.w),
@@ -520,15 +520,15 @@ def logo(col=None, version=""):
 
     col = col if col else random.choice((c.g, c.r, c.y, c.b, c.p, c.w))
     LOGO = col + """\
-      8888888b.  888b     d888  .d8888b.
-      888   Y88b 8888b   d8888 d88P  Y88b
-      888    888 88888b.d88888 Y88b.
-      888   d88P 888Y88888P888  "Y888b.
-      8888888P"  888 Y888P 888     "Y88b.
-      888        888  Y8P  888       "888
-      888        888   "   888 Y88b  d88P
-      888        888       888  "Y8888P"  %s
-      """ % (c.w + "v" + version if version else "")
+                88888b.d88b.  88888b.  .d8888b
+                888 "888 "88b 888 "88b 88K
+                888  888  888 888  888 "Y8888b.
+                888  888  888 888 d88P      X88
+                888  888  888 88888P"   88888P'
+                              888
+                              888   %s%s
+                              888%s
+      """ % (c.w + "v" + version if version else "", col, c.w)
     return LOGO + c.w
 
 
@@ -1230,7 +1230,7 @@ def quits(showlogo=True):
 
     if Config.CHECKUPDATE and showlogo:
         try:
-            url = "https://github.com/np1/pms/raw/master/VERSION"
+            url = "https://github.com/np1/mps/raw/master/VERSION"
             v = urlopen(url).read().decode("utf8")
             v = re.search(r"^version\s*([\d\.]+)\s*$", v, re.MULTILINE)
             if v:
