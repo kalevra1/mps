@@ -10,7 +10,7 @@ for accessing youtube content]
 
 .. image:: http://badge.fury.io/py/mps.png
     :target: https://pypi.python.org/pypi/mps
-.. image:: https://pypip.in/d/mps.png
+.. image:: https://pypip.in/d/mps/badge.png
     :target: https://pypi.python.org/pypi/mps
 
 Features
