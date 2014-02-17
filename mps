@@ -24,7 +24,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from __future__ import print_function
 
-__version__ = "0.20.01"
+__version__ = "0.20.02"
 __author__ = "nagev"
 __license__ = "GPLv3"
 
@@ -698,25 +698,34 @@ def playback_progress(idx, allsongs, repeat=False):
     return out
 
 
+def real_len(u):
+    """ Try to determine width of strings displayed with monospace font. """
+
+    ueaw = unicodedata.east_asian_width
+    widths = dict(W=2, F=2, A=1, N=0.75, H=0.5)
+    return int(round(sum(widths.get(ueaw(char), 1) for char in u)))
+
+
 def uea_trunc(num, t):
     """ Truncate to num chars taking into account East Asian width chars. """
 
     ueaw = unicodedata.east_asian_width
-    real_len = lambda text: sum(1 for x in text if ueaw(x) == "W") + len(text)
+
     while real_len(t) > num:
         t = t[:-1]
+
     return t
 
 
 def uea_rpad(num, t):
-    """ Right pad with spaces, taking into account East Asian width chars. """
+    """ Right pad with spaces taking into account East Asian width chars. """
 
-    ueaw = unicodedata.east_asian_width
-    real_len = lambda text: sum(1 for x in text if ueaw(x) == "W") + len(text)
-    if real_len(t) >= num:
-        return t
-    else:
-        return t + (" " * (num - real_len(t)))
+    t = uea_trunc(num, t)
+
+    if real_len(t) < num:
+        t = t + (" " * (num - real_len(t)))
+
+    return t
 
 
 def generate_songlist_display(song=False):
