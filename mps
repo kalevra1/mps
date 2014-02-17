@@ -28,6 +28,7 @@ __version__ = "0.20.01"
 __author__ = "nagev"
 __license__ = "GPLv3"
 
+import unicodedata
 import subprocess
 import logging
 import random
@@ -697,6 +698,27 @@ def playback_progress(idx, allsongs, repeat=False):
     return out
 
 
+def uea_trunc(num, t):
+    """ Truncate to num chars taking into account East Asian width chars. """
+
+    ueaw = unicodedata.east_asian_width
+    real_len = lambda text: sum(1 for x in text if ueaw(x) == "W") + len(text)
+    while real_len(t) > num:
+        t = t[:-1]
+    return t
+
+
+def uea_rpad(num, t):
+    """ Right pad with spaces, taking into account East Asian width chars. """
+
+    ueaw = unicodedata.east_asian_width
+    real_len = lambda text: sum(1 for x in text if ueaw(x) == "W") + len(text)
+    if real_len(t) >= num:
+        return t
+    else:
+        return t + (" " * (num - real_len(t)))
+
+
 def generate_songlist_display(song=False):
     """ Generate list of choices from a song list."""
 
@@ -716,15 +738,16 @@ def generate_songlist_display(song=False):
         artist = x.get('singer') or "unknown artist"
         bitrate = x.get('listrate') or "unknown"
         duration = x.get('duration') or "unknown length"
+        art, tit = uea_trunc(20, artist), uea_trunc(21, title)
+        art, tit = uea_rpad(21, art), uea_rpad(22, tit)
+        fmtrow = "%s%-6s %-7s %s %s %-8s %-7s%s\n"
 
         if not song or song != songs[n]:
             out += (fmtrow % (col, str(n + 1), str(size)[:3] + " Mb",
-                              artist[:20], title[:21], duration[:8],
-                              bitrate[:6], c.w))
+                              art, tit, duration[:8], bitrate[:6], c.w))
         else:
             out += (fmtrow % (c.p, str(n + 1), str(size)[:3] + " Mb",
-                              artist[:20], title[:21], duration[:8],
-                              bitrate[:6], c.w))
+                              art, tit, duration[:8], bitrate[:6], c.w))
 
     return out + "\n" * (5 - len(songs)) if not song else out
 
