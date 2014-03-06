@@ -1,6 +1,5 @@
 mps
 ===
-version 0.20.02
 
 [UPDATE 13/Feb/2014: To assist with packaging and resolve a nameclash with
 other software, this program has been renamed from pms to mps]
