@@ -1,3 +1,11 @@
+Version 0.20.03
+Mar 6 2014
+
+ - Fix for non UTF-8 environments
+ - Fix indentation issue when scrolling through readline history
+
+-------------------------------------------------------------------------------
+
 Version 0.20.02
 Feb 17 2014
 
