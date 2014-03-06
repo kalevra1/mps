@@ -67,13 +67,14 @@ else:
     compat_input = raw_input
 
 mswin = os.name == "nt"
+non_utf8 = mswin or not "UTF-8" in os.environ.get("LANG", "")
 member_var = lambda x: not(x.startswith("__") or callable(x))
 
 
-def mswinenc(txt):
+def non_utf8_encode(txt):
     """ Encoding for Windows. """
 
-    if mswin:
+    if non_utf8:
         sse = sys.stdout.encoding
         txt = txt.encode(sse, "replace").decode("utf8", "ignore")
 
@@ -84,7 +85,7 @@ def mswinfn(filename):
     """ Fix filename for Windows. """
 
     if mswin:
-        filename = mswinenc(filename)
+        filename = non_utf8_encode(filename)
         allowed = re.compile(r'[^\\/?*$\'"%&:<>|]')
         filename = "".join(x if allowed.match(x) else "_" for x in filename)
 
@@ -569,7 +570,7 @@ def mplayer_help(short=True):
     seek = u"[{0}\u2190{1}] seek [{0}\u2192{1}]"
     pause = u"[{0}\u2193{1}] SEEK [{0}\u2191{1}]       [{0}space{1}] pause"
 
-    if mswin:
+    if non_utf8:
         seek = "[{0}<-{1}] seek [{0}->{1}]"
         pause = "[{0}DN{1}] SEEK [{0}UP{1}]       [{0}space{1}] pause"
 
@@ -648,7 +649,7 @@ def screen_update():
         print("\n" * 200)
 
     if g.content:
-        g.content = mswinenc(g.content)
+        g.content = non_utf8_encode(g.content)
         print(py2utf8_encode(g.content))
 
     if g.message:
@@ -1513,7 +1514,7 @@ def main():
 
     # compile regexp's
     regx = {name: re.compile(val, re.UNICODE) for name, val in regx.items()}
-    prompt = "> " + c.y if not mswin else "> "
+    prompt = "> "
 
     while True:
         try:
