@@ -34,6 +34,7 @@ import logging
 import random
 import socket
 import time
+import math
 import json
 import sys
 import re
@@ -95,31 +96,37 @@ def mswinfn(filename):
 def get_default_ddir():
     """ Get system default Download directory, append mps dir. """
 
-    if mswin:
-        return os.path.join(os.path.expanduser("~"), "Downloads", "mps")
+    join, user = os.path.join, os.path.expanduser("~")
 
-    USER_DIRS = os.path.join(os.path.expanduser("~"), ".config", "user-dirs.dirs")
-    DOWNLOAD_HOME = os.path.join(os.path.expanduser("~"), "Downloads")
+    if mswin:
+        #return os.path.join(os.path.expanduser("~"), "Downloads", "mps")
+        return join(user, "Downloads", "pms")
+
+    USER_DIRS = join(user, ".config", "user-dirs.dirs")
+    DOWNLOAD_HOME = join(user, "Downloads")
 
     if 'XDG_DOWNLOAD_DIR' in os.environ:
         ddir = os.environ['XDG_DOWNLOAD_DIR']
+
     elif os.path.exists(USER_DIRS):
         lines = open(USER_DIRS).readlines()
         defn = [x for x in lines if x.startswith("XDG_DOWNLOAD_DIR")]
 
         if len(defn) == 0:
-            ddir = os.path.expanduser("~")
+            ddir = user
+
         else:
             ddir = defn[0].split("=")[1]\
-                    .replace('"', '')\
-                    .replace("$HOME", os.path.expanduser("~")).strip()
+                .replace('"', '')\
+                .replace("$HOME", user).strip()
+
     elif os.path.exists(DOWNLOAD_HOME):
         ddir = DOWNLOAD_HOME
     else:
-        ddir = os.path.expanduser("~")
+        ddir = user
 
     ddir = py2utf8_decode(ddir)
-    return os.path.join(ddir, "mps")
+    return join(ddir, "mps")
 
 
 def get_config_dir():
@@ -151,14 +158,14 @@ class Config(object):
     """ Holds various configuration values. """
 
     PLAYER = "mplayer"
-    PLAYERARGS = "-nolirc -nocache -prefer-ipv4 -really-quiet"
+    PLAYERARGS = "-nolirc -prefer-ipv4"
     COLOURS = False if mswin and not has_colorama else True
     CHECKUPDATE = True
     SHOW_MPLAYER_KEYS = True
     DDIR = get_default_ddir()
 
 
-if os.environ.get("mps-debug") == 1:
+if os.environ.get("mpsdebug") == 1:
     logging.basicConfig(level=logging.DEBUG)
 
 if not mswin:
@@ -231,7 +238,6 @@ class g(object):
     OLD_PLFILE = os.path.join(os.path.expanduser("~"), ".pms-playlist")
 
 
-
 def showconfig(_):
     """ Dump config data. """
 
@@ -268,6 +274,7 @@ elif os.path.exists(g.OLD_CFFILE):
     loadconfig(g.OLD_CFFILE)
     saveconfig()
     os.remove(g.OLD_CFFILE)
+
 
 class c(object):
 
@@ -710,8 +717,6 @@ def real_len(u):
 def uea_trunc(num, t):
     """ Truncate to num chars taking into account East Asian width chars. """
 
-    ueaw = unicodedata.east_asian_width
-
     while real_len(t) > num:
         t = t[:-1]
 
@@ -795,6 +800,7 @@ def get_stream(song, force=False):
 def playsong(song, failcount=0):
     """ Play song using config.PLAYER called with args config.PLAYERARGS."""
 
+    # pylint: disable = R0912
     try:
         track_url = get_stream(song)
         song['track_url'] = track_url
@@ -837,11 +843,99 @@ def playsong(song, failcount=0):
             if mswin:
                 stdout = stderr = fnull
 
-            subprocess.call(cmd, stdout=stdout, stderr=stderr)
+            if "mplayer" in Config.PLAYER:
 
+                if "-really-quiet" in cmd:
+                    cmd.remove("-really-quiet")
+
+                p = subprocess.Popen(cmd, shell=False,
+                                     stdout=subprocess.PIPE,
+                                     stderr=subprocess.STDOUT, bufsize=1)
+                mplayer_status(p, "", get_length(song))
+
+            else:
+                subprocess.call(cmd, stdout=stdout, stderr=stderr)
 
     except OSError:
         g.message = F('no player') % Config.PLAYER
+
+    finally:
+        try:
+            p.terminate()  # make sure to kill mplayer if mps crashes
+
+        except (OSError, AttributeError, UnboundLocalError):
+            pass
+
+
+def get_length(song):
+    """ Return song length in seconds. """
+
+    d = song['duration']
+    return sum(int(x) * 60 ** n for n, x in enumerate(reversed(d.split(":"))))
+
+
+def writestatus(text):
+    """ Update status line. """
+
+    spaces = 75 - len(text)
+    sys.stdout.write(" " + text + (" " * spaces) + "\r")
+    sys.stdout.flush()
+
+
+def mplayer_status(popen_object, prefix="", songlength=0):
+    """ Capture time progress from player output. Write status line. """
+
+    # A: 175.6
+    re_mplayer = re.compile(r"A:\s*(?P<elapsed_s>\d+)\.\d\s*")
+    last_displayed_line = None
+    buff = ''
+
+    while popen_object.poll() is None:
+        char = popen_object.stdout.read(1).decode('utf-8')
+
+        if char in '\r\n':
+            m = re_mplayer.match(buff)
+
+            if m:
+                line = make_status_line(m, songlength)
+
+                if line != last_displayed_line:
+                    writestatus(prefix + (" " if prefix else "") + line)
+                    last_displayed_line = line
+
+            buff = ''
+
+        else:
+            buff += char
+
+
+def make_status_line(match_object, songlength=0, progress_bar_size=58):
+    """ Format progress line output.  """
+
+    try:
+        elapsed_s = int(match_object.group('elapsed_s') or '0')
+
+    except ValueError:
+        return ""
+
+    display_s = elapsed_s
+    display_m = 0
+
+    if elapsed_s >= 60:
+        display_m = display_s // 60
+        display_s %= 60
+
+    pct = (float(elapsed_s) / songlength * 100) if songlength else 0
+
+    status_line = "%02i:%02i %s" % (display_m, display_s,
+                                    ("[%.0f%%]" % pct).ljust(6)
+                                    )
+
+    progress = int(math.ceil(pct / 100 * progress_bar_size))
+    status_line += " [%s]" % ("=" * (progress - 1) +
+                              ">").ljust(progress_bar_size, ' ')
+
+    return status_line
 
 
 def top(period, page=1):
