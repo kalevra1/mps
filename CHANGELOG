@@ -1,8 +1,11 @@
 Version 0.20.04
-Not yet released
+Mar 11 2014
 
  - Added progress bar / current time for mplayer (thomasleveil)
+ - Input history persists across sessions (ctrl-r to search)
+     (uses GNU readline - Linux only)
 
+-------------------------------------------------------------------------------
 
 Version 0.20.03
 Mar 6 2014

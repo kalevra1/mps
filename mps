@@ -168,13 +168,14 @@ class Config(object):
 if os.environ.get("mpsdebug") == 1:
     logging.basicConfig(level=logging.DEBUG)
 
-if not mswin:
-    try:
-        import readline  # import readline if not running on windows
-        readline.get_history_length()  # redundant, prevents unused import warn
 
-    except ImportError:
-        pass  # no biggie
+try:
+    import readline
+    readline.set_history_length(2000)
+    has_readline = True
+
+except ImportError:
+    has_readline = False
 
 opener = build_opener()
 ua = "Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; WOW64; Trident/5.0)"
@@ -236,6 +237,7 @@ class g(object):
     PLFILE = os.path.join(get_config_dir(), "playlist")
     OLD_CFFILE = os.path.join(os.path.expanduser("~"), ".pms-config")
     OLD_PLFILE = os.path.join(os.path.expanduser("~"), ".pms-playlist")
+    READLINE_FILE = None
 
 
 def showconfig(_):
@@ -274,6 +276,12 @@ elif os.path.exists(g.OLD_CFFILE):
     loadconfig(g.OLD_CFFILE)
     saveconfig()
     os.remove(g.OLD_CFFILE)
+
+if has_readline:
+    g.READLINE_FILE = os.path.join(get_config_dir(), "input_history")
+
+    if os.path.exists(g.READLINE_FILE):
+        readline.read_history_file(g.READLINE_FILE)
 
 
 class c(object):
@@ -1354,6 +1362,9 @@ def show_help(helpname=None):
 
 def quits(showlogo=True):
     """ Exit the program. """
+
+    if has_readline:
+        readline.write_history_file(g.READLINE_FILE)
 
     msg = ("\n" * 200) + logo(c.r, version=__version__) if showlogo else ""
     vermsg = ""
