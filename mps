@@ -856,6 +856,10 @@ def playsong(song, failcount=0):
                 if "-really-quiet" in cmd:
                     cmd.remove("-really-quiet")
 
+                # fix for github issue 59 of mps-youtube
+                if mswin and sys.version_info[:2] < (3, 0):
+                    cmd = [x.encode("utf8", errors="replace") for x in cmd]
+
                 p = subprocess.Popen(cmd, shell=False,
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.STDOUT, bufsize=1)
@@ -899,7 +903,7 @@ def mplayer_status(popen_object, prefix="", songlength=0):
     buff = ''
 
     while popen_object.poll() is None:
-        char = popen_object.stdout.read(1).decode('utf-8')
+        char = popen_object.stdout.read(1).decode('utf-8', errors="ignore")
 
         if char in '\r\n':
             m = re_mplayer.match(buff)

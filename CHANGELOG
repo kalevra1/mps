@@ -1,3 +1,10 @@
+Version 0.20.05
+In development - not yet released
+
+ - Fix encoding issues around Popen call / progress output
+
+-------------------------------------------------------------------------------
+
 Version 0.20.04
 Mar 11 2014
 
