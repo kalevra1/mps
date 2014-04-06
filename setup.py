@@ -14,7 +14,7 @@ except ImportError:
 
 setup(
     name="mps",
-    version="0.20.05",
+    version="0.20.06",
     description="Search, Stream and Download MP3",
     keywords=["MP3", "music", "audio", "search", "stream", "download"],
     author="nagev",
