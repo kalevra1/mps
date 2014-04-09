@@ -165,7 +165,7 @@ class Config(object):
     DDIR = get_default_ddir()
 
 
-if os.environ.get("mpsdebug") == 1:
+if os.environ.get("mpsdebug") == '1':
     logging.basicConfig(level=logging.DEBUG)
 
 
@@ -899,17 +899,24 @@ def mplayer_status(popen_object, prefix="", songlength=0):
 
     # A: 175.6
     re_mplayer = re.compile(r"A:\s*(?P<elapsed_s>\d+)\.\d\s*")
+    # Volume: 88 %
+    re_mplayer_volume = re.compile(r"Volume:\s*(?P<volume>\d+)\s*%")
+
     last_displayed_line = None
     buff = ''
+    volume_level = 100
 
     while popen_object.poll() is None:
         char = popen_object.stdout.read(1).decode('utf-8', errors="ignore")
 
         if char in '\r\n':
-            m = re_mplayer.match(buff)
+            mv = re_mplayer_volume.search(buff)
+            if mv:
+                volume_level = int(mv.group("volume"))
 
+            m = re_mplayer.match(buff)
             if m:
-                line = make_status_line(m, songlength)
+                line = make_status_line(m, songlength, volume=volume_level)
 
                 if line != last_displayed_line:
                     writestatus(prefix + (" " if prefix else "") + line)
@@ -921,7 +928,7 @@ def mplayer_status(popen_object, prefix="", songlength=0):
             buff += char
 
 
-def make_status_line(match_object, songlength=0, progress_bar_size=58):
+def make_status_line(match_object, songlength=0, volume=None, progress_bar_size=58):
     """ Format progress line output.  """
 
     try:
@@ -946,6 +953,9 @@ def make_status_line(match_object, songlength=0, progress_bar_size=58):
     progress = int(math.ceil(pct / 100 * progress_bar_size))
     status_line += " [%s]" % ("=" * (progress - 1) +
                               ">").ljust(progress_bar_size, ' ')
+
+    if volume:
+        status_line += " vol: %d%%  " % volume
 
     return status_line
 
