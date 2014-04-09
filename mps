@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+# coding: utf-8
 """
 mps.
 
@@ -954,10 +954,37 @@ def make_status_line(match_object, songlength=0, volume=None, progress_bar_size=
     status_line += " [%s]" % ("=" * (progress - 1) +
                               ">").ljust(progress_bar_size, ' ')
 
-    if volume:
-        status_line += " vol: %d%%  " % volume
+    if volume is not None:
+        if sys.__stdout__.encoding == 'UTF-8':
+            status_line += " %s " % make_volume_graph(volume)
+        else:
+            status_line += " vol: %d%%  " % volume
 
     return status_line
+
+
+def make_volume_graph(percent=0):
+    percent = min(percent, 100)
+    percent = max(percent, 0)
+    # Unicode: 9601, 9602, 9603, 9604, 9605, 9606, 9607, 9608
+    if percent > 87.5:
+        return '[▁▂▃▄▅▆▇█]'
+    elif percent > 75:
+        return '[▁▂▃▄▅▆▇ ]'
+    elif percent > 62.5:
+        return '[▁▂▃▄▅▆  ]'
+    elif percent > 50.5:
+        return '[▁▂▃▄▅   ]'
+    elif percent > 37.5:
+        return '[▁▂▃▄    ]'
+    elif percent > 25:
+        return '[▁▂▃     ]'
+    elif percent > 12.5:
+        return '[▁▂      ]'
+    elif percent > 0:
+        return '[▁       ]'
+    else:
+        return '[  MUTE  ]'
 
 
 def top(period, page=1):
