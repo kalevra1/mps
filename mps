@@ -56,12 +56,14 @@ if sys.version_info[:2] >= (3, 0):
     import pickle
     from urllib.request import build_opener
     from urllib.error import HTTPError, URLError
+    from urllib.parse import urlencode
     py2utf8_encode = lambda x: x
     py2utf8_decode = lambda x: x
     compat_input = input
 
 else:
     from urllib2 import build_opener, HTTPError, URLError
+    from urllib import urlencode
     import cPickle as pickle
     py2utf8_encode = lambda x: x.encode("utf8")
     py2utf8_decode = lambda x: x.decode("utf8")
@@ -1031,18 +1033,20 @@ def search(term, page=1, splash=True):
 
     else:
         original_term = term
-        url = "http://pleer.com/search?q=%s&target=tracks&page=%s"
+        url = "http://pleer.com/search"
+        query = {"target": "tracks", "page": page}
 
         if "+best" in term:
             term = term.replace("+best", "")
-            url += "&quality=best"
+            query["quality"] = "best"
 
         elif "+good" in term:
             term = term.replace("+good", "")
-            url += "&quality=good"
+            query["quality"] = "good"
 
+        query["q"] = term
         g.message = "Searching for '%s%s%s'" % (c.y, term, c.w)
-        url = url % (term.replace(" ", "+"), page)
+        url = "%s?%s" % (url, urlencode(query))
 
         if url in g.url_memo:
             songs = g.url_memo[url]
