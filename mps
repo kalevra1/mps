@@ -906,7 +906,7 @@ def mplayer_status(popen_object, prefix="", songlength=0):
 
     last_displayed_line = None
     buff = ''
-    volume_level = 100
+    volume_level = None
 
     while popen_object.poll() is None:
         char = popen_object.stdout.read(1).decode('utf-8', errors="ignore")
@@ -952,41 +952,18 @@ def make_status_line(match_object, songlength=0, volume=None, progress_bar_size=
                                     ("[%.0f%%]" % pct).ljust(6)
                                     )
 
+    if volume:
+        progress_bar_size -= 10
+        vol_suffix = " vol: %d%%  " % volume
+
+    else:
+        vol_suffix = ""
+
     progress = int(math.ceil(pct / 100 * progress_bar_size))
     status_line += " [%s]" % ("=" * (progress - 1) +
                               ">").ljust(progress_bar_size, ' ')
-
-    if volume is not None:
-        if sys.__stdout__.encoding == 'UTF-8':
-            status_line += " %s " % make_volume_graph(volume)
-        else:
-            status_line += " vol: %d%%  " % volume
-
+    status_line += vol_suffix
     return status_line
-
-
-def make_volume_graph(percent=0):
-    percent = min(percent, 100)
-    percent = max(percent, 0)
-    # Unicode: 9601, 9602, 9603, 9604, 9605, 9606, 9607, 9608
-    if percent > 87.5:
-        return '[▁▂▃▄▅▆▇█]'
-    elif percent > 75:
-        return '[▁▂▃▄▅▆▇ ]'
-    elif percent > 62.5:
-        return '[▁▂▃▄▅▆  ]'
-    elif percent > 50.5:
-        return '[▁▂▃▄▅   ]'
-    elif percent > 37.5:
-        return '[▁▂▃▄    ]'
-    elif percent > 25:
-        return '[▁▂▃     ]'
-    elif percent > 12.5:
-        return '[▁▂      ]'
-    elif percent > 0:
-        return '[▁       ]'
-    else:
-        return '[  MUTE  ]'
 
 
 def top(period, page=1):
