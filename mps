@@ -930,7 +930,8 @@ def mplayer_status(popen_object, prefix="", songlength=0):
             buff += char
 
 
-def make_status_line(match_object, songlength=0, volume=None, progress_bar_size=58):
+def make_status_line(match_object, songlength=0, volume=None,
+                     progress_bar_size=58):
     """ Format progress line output.  """
 
     try:
@@ -961,7 +962,7 @@ def make_status_line(match_object, songlength=0, volume=None, progress_bar_size=
 
     progress = int(math.ceil(pct / 100 * progress_bar_size))
     status_line += " [%s]" % ("=" * (progress - 1) +
-                              ">").ljust(progress_bar_size, ' ')
+                              ">").ljust(progress_bar_size)
     status_line += vol_suffix
     return status_line
 
