@@ -1,3 +1,11 @@
+Version 0.20.07
+Development version - not yet released
+
+ - Added volume indicator (thomasleveil)
+ - Fix crash with Python 3 and non-ascii input (leonidborisenko)
+
+-------------------------------------------------------------------------------
+
 Version 0.20.06
 Apr 6 2014
 
