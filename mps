@@ -681,13 +681,13 @@ def playback_progress(idx, allsongs, repeat=False):
 
     # pylint: disable=R0914
     # too many local variables
-    out = "  %s%-31s  %-31s %s   %s\n" % (c.ul, "Artist", "Title", "Time", c.w)
+    out = "  %s%-32s  %-33s %s   %s\n" % (c.ul, "Artist", "Title", "Time", c.w)
     show_key_help = (Config.PLAYER == "mplayer" or Config.PLAYER == "mpv")\
         and Config.SHOW_MPLAYER_KEYS
     multi = len(allsongs) > 1
 
     for n, song in enumerate(allsongs):
-        i = song['singer'][:30], song['song'][:30], song['duration']
+        i = song['singer'][:31], song['song'][:32], song['duration']
         rate = song['rate']
         fmt = (c.w, "  ", c.b, i[0], c.w, c.b, i[1], c.w, c.y, i[2], c.w)
 
@@ -695,7 +695,7 @@ def playback_progress(idx, allsongs, repeat=False):
             fmt = (c.y, "> ", c.p, i[0], c.w, c.p, i[1], c.w, c.p, i[2], c.w)
             r, cur = rate, i
 
-        out += "%s%s%s%-31s%s  %s%-31s%s [%s%s%s]\n" % fmt
+        out += "%s%s%s%-32s%s  %s%-33s%s [%s%s%s]\n" % fmt
 
     out += "\n" * (3 - len(allsongs))
     pos = 8 * " ", c.y, idx + 1, c.w, c.y, len(allsongs), c.w
@@ -931,7 +931,7 @@ def mplayer_status(popen_object, prefix="", songlength=0):
 
 
 def make_status_line(match_object, songlength=0, volume=None,
-                     progress_bar_size=58):
+                     progress_bar_size=61):
     """ Format progress line output.  """
 
     try:
