@@ -257,3 +257,9 @@ To view configuration, enter ``set`` and to change any item enter:
 ``set <item> <value>``.  This can be used to change the download path (DDIR)
 and will persist after exiting the program.  To reset all settings to default,
 use ``set all default`` or for a single item, ``set <item> default``
+
+Disclaimer
+~~~~~~~~~~
+
+Use this software at your own risk, it downloads content from pleer.com, an
+online mp3 file repository.
