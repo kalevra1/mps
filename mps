@@ -24,7 +24,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from __future__ import print_function
 
-__version__ = "0.20.07"
+__version__ = "0.20.08"
 __author__ = "nagev"
 __license__ = "GPLv3"
 
