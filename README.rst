@@ -1,12 +1,6 @@
 mps
 ===
 
-[UPDATE 13/Feb/2014: To assist with packaging and resolve a nameclash with
-other software, this program has been renamed from pms to mps]
-
-[UPDATE 3/Feb/2014 - see `mps-youtube <https://github.com/np1/mps-youtube>`_
-for accessing youtube content]
-
 .. image:: http://badge.fury.io/py/mps.png
     :target: https://pypi.python.org/pypi/mps
 .. image:: https://pypip.in/d/mps/badge.png
