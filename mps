@@ -1,9 +1,9 @@
 #!/usr/bin/env python
-
+# coding: utf-8
 """
-pms.
+mps.
 
-https://github.com/np1/pms
+https://github.com/np1/mps
 
 Copyright (C)  2013-2014 nagev
 
@@ -24,15 +24,17 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from __future__ import print_function
 
-__version__ = "0.18.40"
+__version__ = "0.20.08"
 __author__ = "nagev"
 __license__ = "GPLv3"
 
+import unicodedata
 import subprocess
 import logging
 import random
 import socket
 import time
+import math
 import json
 import sys
 import re
@@ -54,25 +56,28 @@ if sys.version_info[:2] >= (3, 0):
     import pickle
     from urllib.request import build_opener
     from urllib.error import HTTPError, URLError
+    from urllib.parse import urlencode
     py2utf8_encode = lambda x: x
     py2utf8_decode = lambda x: x
     compat_input = input
 
 else:
     from urllib2 import build_opener, HTTPError, URLError
+    from urllib import urlencode
     import cPickle as pickle
     py2utf8_encode = lambda x: x.encode("utf8")
     py2utf8_decode = lambda x: x.decode("utf8")
     compat_input = raw_input
 
 mswin = os.name == "nt"
+non_utf8 = mswin or not "UTF-8" in os.environ.get("LANG", "")
 member_var = lambda x: not(x.startswith("__") or callable(x))
 
 
-def mswinenc(txt):
+def non_utf8_encode(txt):
     """ Encoding for Windows. """
 
-    if mswin:
+    if non_utf8:
         sse = sys.stdout.encoding
         txt = txt.encode(sse, "replace").decode("utf8", "ignore")
 
@@ -83,7 +88,7 @@ def mswinfn(filename):
     """ Fix filename for Windows. """
 
     if mswin:
-        filename = mswinenc(filename)
+        filename = non_utf8_encode(filename)
         allowed = re.compile(r'[^\\/?*$\'"%&:<>|]')
         filename = "".join(x if allowed.match(x) else "_" for x in filename)
 
@@ -91,36 +96,43 @@ def mswinfn(filename):
 
 
 def get_default_ddir():
-    """ Get system default Download directory, append PMS dir. """
+    """ Get system default Download directory, append mps dir. """
+
+    join, user = os.path.join, os.path.expanduser("~")
 
     if mswin:
-        return os.path.join(os.path.expanduser("~"), "Downloads", "PMS")
+        #return os.path.join(os.path.expanduser("~"), "Downloads", "mps")
+        return join(user, "Downloads", "pms")
 
-    USER_DIRS = os.path.join(os.path.expanduser("~"), ".config", "user-dirs.dirs")
-    DOWNLOAD_HOME = os.path.join(os.path.expanduser("~"), "Downloads")
+    USER_DIRS = join(user, ".config", "user-dirs.dirs")
+    DOWNLOAD_HOME = join(user, "Downloads")
 
     if 'XDG_DOWNLOAD_DIR' in os.environ:
         ddir = os.environ['XDG_DOWNLOAD_DIR']
+
     elif os.path.exists(USER_DIRS):
         lines = open(USER_DIRS).readlines()
         defn = [x for x in lines if x.startswith("XDG_DOWNLOAD_DIR")]
 
         if len(defn) == 0:
-            ddir = os.path.expanduser("~")
+            ddir = user
+
         else:
             ddir = defn[0].split("=")[1]\
-                    .replace('"', '')\
-                    .replace("$HOME", os.path.expanduser("~"))
+                .replace('"', '')\
+                .replace("$HOME", user).strip()
+
     elif os.path.exists(DOWNLOAD_HOME):
         ddir = DOWNLOAD_HOME
     else:
-        ddir = os.path.expanduser("~")
+        ddir = user
 
-    return os.path.join(ddir, "PMS")
+    ddir = py2utf8_decode(ddir)
+    return join(ddir, "mps")
 
 
 def get_config_dir():
-    """ Get user configuration directory, append PMS dir. """
+    """ Get user configuration directory.  Create if needed. """
 
     if mswin:
         # AppData\Roaming on Windows 7
@@ -131,12 +143,16 @@ def get_config_dir():
         else:
             confd = os.path.join(os.environ["HOME"], ".config")
 
-    pmsd = os.path.join(confd, "pms")
+    oldd = os.path.join(confd, "pms")
+    mpsd = os.path.join(confd, "mps")
 
-    if not os.path.exists(pmsd):
-        os.mkdir(pmsd)
+    if os.path.exists(oldd) and not os.path.exists(mpsd):
+        os.rename(oldd, mpsd)
 
-    return pmsd
+    elif not os.path.exists(mpsd):
+        os.makedirs(mpsd)
+
+    return mpsd
 
 
 class Config(object):
@@ -144,23 +160,24 @@ class Config(object):
     """ Holds various configuration values. """
 
     PLAYER = "mplayer"
-    PLAYERARGS = "-nolirc -nocache -prefer-ipv4 -really-quiet"
+    PLAYERARGS = "-nolirc -prefer-ipv4"
     COLOURS = False if mswin and not has_colorama else True
     CHECKUPDATE = True
     SHOW_MPLAYER_KEYS = True
     DDIR = get_default_ddir()
 
 
-if os.path.exists(os.path.join(os.path.expanduser("~"), ".pms-debug")):
+if os.environ.get("mpsdebug") == '1':
     logging.basicConfig(level=logging.DEBUG)
 
-if not mswin:
-    try:
-        import readline  # import readline if not running on windows
-        readline.get_history_length()  # redundant, prevents unused import warn
 
-    except ImportError:
-        pass  # no biggie
+try:
+    import readline
+    readline.set_history_length(2000)
+    has_readline = True
+
+except ImportError:
+    has_readline = False
 
 opener = build_opener()
 ua = "Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; WOW64; Trident/5.0)"
@@ -222,7 +239,7 @@ class g(object):
     PLFILE = os.path.join(get_config_dir(), "playlist")
     OLD_CFFILE = os.path.join(os.path.expanduser("~"), ".pms-config")
     OLD_PLFILE = os.path.join(os.path.expanduser("~"), ".pms-playlist")
-
+    READLINE_FILE = None
 
 
 def showconfig(_):
@@ -261,6 +278,13 @@ elif os.path.exists(g.OLD_CFFILE):
     loadconfig(g.OLD_CFFILE)
     saveconfig()
     os.remove(g.OLD_CFFILE)
+
+if has_readline:
+    g.READLINE_FILE = os.path.join(get_config_dir(), "input_history")
+
+    if os.path.exists(g.READLINE_FILE):
+        readline.read_history_file(g.READLINE_FILE)
+
 
 class c(object):
 
@@ -345,7 +369,7 @@ def setconfig(key, val):
 
 
 HELP = """
-Note: More documentation is available at {3}https://github.com/np1/pms{1}
+Note: More documentation is available at {3}https://github.com/np1/mps{1}
 {0}Searching{1}
 You can enter an artist/song name to search whenever the program is expecting
 text input. Searches must be prefixed with either a {2}.{1} or {2}/{1} \
@@ -420,7 +444,7 @@ def F(key, nb=0, na=0, percent=r"\*", nums=r"\*\*", textlib=None):
 
 g.text = {
     "exitmsg": """\
-**0pms - **1http://github.com/np1/pms**0
+**0mps - **1http://github.com/np1/mps**0
 Released under the GPLv3 license
 (c) 2013-2014 nagev**2\n""",
     "_exitmsg": (c.r, c.b, c.w),
@@ -519,15 +543,15 @@ def logo(col=None, version=""):
 
     col = col if col else random.choice((c.g, c.r, c.y, c.b, c.p, c.w))
     LOGO = col + """\
-      8888888b.  888b     d888  .d8888b.
-      888   Y88b 8888b   d8888 d88P  Y88b
-      888    888 88888b.d88888 Y88b.
-      888   d88P 888Y88888P888  "Y888b.
-      8888888P"  888 Y888P 888     "Y88b.
-      888        888  Y8P  888       "888
-      888        888   "   888 Y88b  d88P
-      888        888       888  "Y8888P"  %s
-      """ % (c.w + "v" + version if version else "")
+                88888b.d88b.  88888b.  .d8888b
+                888 "888 "88b 888 "88b 88K
+                888  888  888 888  888 "Y8888b.
+                888  888  888 888 d88P      X88
+                888  888  888 88888P"   88888P'
+                              888
+                              888   %s%s
+                              888%s
+      """ % (c.w + "v" + version if version else "", col, c.w)
     return LOGO + c.w
 
 
@@ -563,7 +587,7 @@ def mplayer_help(short=True):
     seek = u"[{0}\u2190{1}] seek [{0}\u2192{1}]"
     pause = u"[{0}\u2193{1}] SEEK [{0}\u2191{1}]       [{0}space{1}] pause"
 
-    if mswin:
+    if non_utf8:
         seek = "[{0}<-{1}] seek [{0}->{1}]"
         pause = "[{0}DN{1}] SEEK [{0}UP{1}]       [{0}space{1}] pause"
 
@@ -642,7 +666,7 @@ def screen_update():
         print("\n" * 200)
 
     if g.content:
-        g.content = mswinenc(g.content)
+        g.content = non_utf8_encode(g.content)
         print(py2utf8_encode(g.content))
 
     if g.message:
@@ -657,13 +681,13 @@ def playback_progress(idx, allsongs, repeat=False):
 
     # pylint: disable=R0914
     # too many local variables
-    out = "  %s%-31s  %-31s %s   %s\n" % (c.ul, "Artist", "Title", "Time", c.w)
+    out = "  %s%-32s  %-33s %s   %s\n" % (c.ul, "Artist", "Title", "Time", c.w)
     show_key_help = (Config.PLAYER == "mplayer" or Config.PLAYER == "mpv")\
         and Config.SHOW_MPLAYER_KEYS
     multi = len(allsongs) > 1
 
     for n, song in enumerate(allsongs):
-        i = song['singer'][:30], song['song'][:30], song['duration']
+        i = song['singer'][:31], song['song'][:32], song['duration']
         rate = song['rate']
         fmt = (c.w, "  ", c.b, i[0], c.w, c.b, i[1], c.w, c.y, i[2], c.w)
 
@@ -671,7 +695,7 @@ def playback_progress(idx, allsongs, repeat=False):
             fmt = (c.y, "> ", c.p, i[0], c.w, c.p, i[1], c.w, c.p, i[2], c.w)
             r, cur = rate, i
 
-        out += "%s%s%s%-31s%s  %s%-31s%s [%s%s%s]\n" % fmt
+        out += "%s%s%s%-32s%s  %s%-33s%s [%s%s%s]\n" % fmt
 
     out += "\n" * (3 - len(allsongs))
     pos = 8 * " ", c.y, idx + 1, c.w, c.y, len(allsongs), c.w
@@ -690,6 +714,34 @@ def playback_progress(idx, allsongs, repeat=False):
     out += "%s    %s%s%s by %s%s%s [%s]" % fmt
     out += "    REPEAT MODE" if repeat else ""
     return out
+
+
+def real_len(u):
+    """ Try to determine width of strings displayed with monospace font. """
+
+    ueaw = unicodedata.east_asian_width
+    widths = dict(W=2, F=2, A=1, N=0.75, H=0.5)
+    return int(round(sum(widths.get(ueaw(char), 1) for char in u)))
+
+
+def uea_trunc(num, t):
+    """ Truncate to num chars taking into account East Asian width chars. """
+
+    while real_len(t) > num:
+        t = t[:-1]
+
+    return t
+
+
+def uea_rpad(num, t):
+    """ Right pad with spaces taking into account East Asian width chars. """
+
+    t = uea_trunc(num, t)
+
+    if real_len(t) < num:
+        t = t + (" " * (num - real_len(t)))
+
+    return t
 
 
 def generate_songlist_display(song=False):
@@ -711,15 +763,16 @@ def generate_songlist_display(song=False):
         artist = x.get('singer') or "unknown artist"
         bitrate = x.get('listrate') or "unknown"
         duration = x.get('duration') or "unknown length"
+        art, tit = uea_trunc(20, artist), uea_trunc(21, title)
+        art, tit = uea_rpad(21, art), uea_rpad(22, tit)
+        fmtrow = "%s%-6s %-7s %s %s %-8s %-7s%s\n"
 
         if not song or song != songs[n]:
             out += (fmtrow % (col, str(n + 1), str(size)[:3] + " Mb",
-                              artist[:20], title[:21], duration[:8],
-                              bitrate[:6], c.w))
+                              art, tit, duration[:8], bitrate[:6], c.w))
         else:
             out += (fmtrow % (c.p, str(n + 1), str(size)[:3] + " Mb",
-                              artist[:20], title[:21], duration[:8],
-                              bitrate[:6], c.w))
+                              art, tit, duration[:8], bitrate[:6], c.w))
 
     return out + "\n" * (5 - len(songs)) if not song else out
 
@@ -757,6 +810,7 @@ def get_stream(song, force=False):
 def playsong(song, failcount=0):
     """ Play song using config.PLAYER called with args config.PLAYERARGS."""
 
+    # pylint: disable = R0912
     try:
         track_url = get_stream(song)
         song['track_url'] = track_url
@@ -799,11 +853,118 @@ def playsong(song, failcount=0):
             if mswin:
                 stdout = stderr = fnull
 
-            subprocess.call(cmd, stdout=stdout, stderr=stderr)
+            if "mplayer" in Config.PLAYER:
 
+                if "-really-quiet" in cmd:
+                    cmd.remove("-really-quiet")
+
+                # fix for github issue 59 of mps-youtube
+                if mswin and sys.version_info[:2] < (3, 0):
+                    cmd = [x.encode("utf8", errors="replace") for x in cmd]
+
+                p = subprocess.Popen(cmd, shell=False,
+                                     stdout=subprocess.PIPE,
+                                     stderr=subprocess.STDOUT, bufsize=1)
+                mplayer_status(p, "", get_length(song))
+
+            else:
+                subprocess.call(cmd, stdout=stdout, stderr=stderr)
 
     except OSError:
         g.message = F('no player') % Config.PLAYER
+
+    finally:
+        try:
+            p.terminate()  # make sure to kill mplayer if mps crashes
+
+        except (OSError, AttributeError, UnboundLocalError):
+            pass
+
+
+def get_length(song):
+    """ Return song length in seconds. """
+
+    d = song['duration']
+    return sum(int(x) * 60 ** n for n, x in enumerate(reversed(d.split(":"))))
+
+
+def writestatus(text):
+    """ Update status line. """
+
+    spaces = 75 - len(text)
+    sys.stdout.write(" " + text + (" " * spaces) + "\r")
+    sys.stdout.flush()
+
+
+def mplayer_status(popen_object, prefix="", songlength=0):
+    """ Capture time progress from player output. Write status line. """
+
+    # A: 175.6
+    re_mplayer = re.compile(r"A:\s*(?P<elapsed_s>\d+)\.\d\s*")
+    # Volume: 88 %
+    re_mplayer_volume = re.compile(r"Volume:\s*(?P<volume>\d+)\s*%")
+
+    last_displayed_line = None
+    buff = ''
+    volume_level = None
+
+    while popen_object.poll() is None:
+        char = popen_object.stdout.read(1).decode('utf-8', errors="ignore")
+
+        if char in '\r\n':
+            mv = re_mplayer_volume.search(buff)
+            if mv:
+                volume_level = int(mv.group("volume"))
+
+            m = re_mplayer.match(buff)
+            if m:
+                line = make_status_line(m, songlength, volume=volume_level)
+
+                if line != last_displayed_line:
+                    writestatus(prefix + (" " if prefix else "") + line)
+                    last_displayed_line = line
+
+            buff = ''
+
+        else:
+            buff += char
+
+
+def make_status_line(match_object, songlength=0, volume=None,
+                     progress_bar_size=61):
+    """ Format progress line output.  """
+
+    try:
+        elapsed_s = int(match_object.group('elapsed_s') or '0')
+
+    except ValueError:
+        return ""
+
+    display_s = elapsed_s
+    display_m = 0
+
+    if elapsed_s >= 60:
+        display_m = display_s // 60
+        display_s %= 60
+
+    pct = (float(elapsed_s) / songlength * 100) if songlength else 0
+
+    status_line = "%02i:%02i %s" % (display_m, display_s,
+                                    ("[%.0f%%]" % pct).ljust(6)
+                                    )
+
+    if volume:
+        progress_bar_size -= 10
+        vol_suffix = " vol: %d%%  " % volume
+
+    else:
+        vol_suffix = ""
+
+    progress = int(math.ceil(pct / 100 * progress_bar_size))
+    status_line += " [%s]" % ("=" * (progress - 1) +
+                              ">").ljust(progress_bar_size)
+    status_line += vol_suffix
+    return status_line
 
 
 def top(period, page=1):
@@ -850,18 +1011,20 @@ def search(term, page=1, splash=True):
 
     else:
         original_term = term
-        url = "http://pleer.com/search?q=%s&target=tracks&page=%s"
+        url = "http://pleer.com/search"
+        query = {"target": "tracks", "page": page}
 
         if "+best" in term:
             term = term.replace("+best", "")
-            url += "&quality=best"
+            query["quality"] = "best"
 
         elif "+good" in term:
             term = term.replace("+good", "")
-            url += "&quality=good"
+            query["quality"] = "good"
 
+        query["q"] = term
         g.message = "Searching for '%s%s%s'" % (c.y, term, c.w)
-        url = url % (term.replace(" ", "+"), page)
+        url = "%s?%s" % (url, urlencode(query))
 
         if url in g.url_memo:
             songs = g.url_memo[url]
@@ -1059,11 +1222,13 @@ def open_save_view(action, name):
             g.model.songs = g.active.songs = list(saved.songs)
             g.message = F("pl loaded") % name
             g.last_opened = name
+            g.content = generate_songlist_display()
 
         elif saved and action == "view":
             g.model.songs = list(saved.songs)
             g.message = F("pl viewed") % name
             g.last_opened = ""
+            g.content = generate_songlist_display()
 
         elif not saved and action in "view open".split():
             g.message = F("pl not found") % name
@@ -1080,7 +1245,7 @@ def open_save_view(action, name):
             g.message = F('pl saved') % name
             save_to_file()
 
-    g.content = generate_songlist_display()
+        g.content = generate_songlist_display()
 
 
 def open_view_bynum(action, num):
@@ -1221,13 +1386,16 @@ def show_help(helpname=None):
 def quits(showlogo=True):
     """ Exit the program. """
 
+    if has_readline:
+        readline.write_history_file(g.READLINE_FILE)
+
     msg = ("\n" * 200) + logo(c.r, version=__version__) if showlogo else ""
     vermsg = ""
     print(msg + F("exitmsg", 2))
 
     if Config.CHECKUPDATE and showlogo:
         try:
-            url = "https://github.com/np1/pms/raw/master/VERSION"
+            url = "https://github.com/np1/mps/raw/master/VERSION"
             v = urlopen(url).read().decode("utf8")
             v = re.search(r"^version\s*([\d\.]+)\s*$", v, re.MULTILINE)
             if v:
@@ -1474,7 +1642,7 @@ def main():
 
     # compile regexp's
     regx = {name: re.compile(val, re.UNICODE) for name, val in regx.items()}
-    prompt = "> " + c.y if not mswin else "> "
+    prompt = "> "
 
     while True:
         try:

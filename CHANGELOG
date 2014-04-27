@@ -1,0 +1,44 @@
+Version 0.20.08
+Apr 23 2014
+
+ - Added volume indicator (thomasleveil)
+ - Fix crash with Python 3 and non-ascii input (leonidborisenko)
+
+-------------------------------------------------------------------------------
+
+Version 0.20.06
+Apr 6 2014
+
+ - Fix encoding issues around Popen call / progress output
+
+-------------------------------------------------------------------------------
+
+Version 0.20.04
+Mar 11 2014
+
+ - Added progress bar / current time for mplayer (thomasleveil)
+ - Input history persists across sessions (ctrl-r to search)
+     (uses GNU readline - Linux only)
+
+-------------------------------------------------------------------------------
+
+Version 0.20.03
+Mar 6 2014
+
+ - Fix for non UTF-8 environments
+ - Fix indentation issue when scrolling through readline history
+
+-------------------------------------------------------------------------------
+
+Version 0.20.02
+Feb 17 2014
+
+ - Improve display alignment for some languages
+
+-------------------------------------------------------------------------------
+
+Version 0.20.01
+Feb 13 2014
+
+ - Migrate location of config directory to reflect new name
+   (~/.config/mps)

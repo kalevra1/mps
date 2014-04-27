@@ -1,8 +1,8 @@
 #!/usr/bin/python
 
-""" setup.py for pms.
+""" setup.py for mps.
 
-https://np1.github.com/pms
+https://np1.github.com/mps
 
 """
 
@@ -13,15 +13,15 @@ except ImportError:
     from distutils.core import setup
 
 setup(
-    name="Poor-Mans-Spotify",
-    version="0.18.40",
+    name="mps",
+    version="0.20.08",
     description="Search, Stream and Download MP3",
     keywords=["MP3", "music", "audio", "search", "stream", "download"],
     author="nagev",
     author_email="np1nagev@gmail.com",
-    url="http://github.com/np1/pms/",
-    download_url="https://github.com/np1/pms/tarball/master",
-    scripts=['pms'],
+    url="http://github.com/np1/mps/",
+    download_url="https://github.com/np1/mps/tarball/master",
+    scripts=['mps'],
     package_data={"": ["LICENSE", "README.rst", "README"]},
     classifiers=[
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
