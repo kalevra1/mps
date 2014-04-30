@@ -1076,7 +1076,7 @@ def search_album(term, page=1, splash=True):
         full_url = "%s?%s" % (url, urlencode(query))
 
         if full_url in g.url_memo:
-            songs = g.url_memo[full_url]
+            songs, artist, title = g.url_memo[full_url]
 
         else:
             if splash:
@@ -1090,7 +1090,7 @@ def search_album(term, page=1, splash=True):
             songs, artist, title = get_songs_from_album(wdata)
 
         if songs:
-            g.url_memo[full_url] = songs
+            g.url_memo[full_url] = songs, artist, title
             g.model.songs = songs
             g.message = "Contents of album %s%s - %s%s:" % (c.y, artist,
                                                             title, c.w)
