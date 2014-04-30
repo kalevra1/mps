@@ -28,6 +28,7 @@ __version__ = "0.20.09"
 __author__ = "nagev"
 __license__ = "GPLv3"
 
+import xml.etree.ElementTree as ET
 import unicodedata
 import subprocess
 import logging
@@ -1058,6 +1059,7 @@ def search(term, page=1, splash=True):
             g.current_page = 1
             g.last_search_query = ""
 
+
 def search_album(term, page=1, splash=True):
     """Search for albums. """
 
@@ -1068,7 +1070,8 @@ def search_album(term, page=1, splash=True):
     else:
         original_term = term
         url = "http://musicbrainz.org/ws/2/release/"
-        query = {"query": 'release:"%s" AND primarytype:album AND status:official' % (term)}
+        query = {"query": 'release:"%s" AND primarytype:album AND status:'
+                 'official' % (term)}
         g.message = "Album search for '%s%s%s'" % (c.y, term, c.w)
         full_url = "%s?%s" % (url, urlencode(query))
 
@@ -1080,7 +1083,7 @@ def search_album(term, page=1, splash=True):
                 g.content = logo(c.b) + "\n\n"
                 screen_update()
 
-            wdata = _do_query(url, query) 
+            wdata = _do_query(url, query)
             if not wdata:
                 return
 
@@ -1089,7 +1092,8 @@ def search_album(term, page=1, splash=True):
         if songs:
             g.url_memo[full_url] = songs
             g.model.songs = songs
-            g.message = "Contents of album %s%s - %s%s:" % (c.y, artist, title, c.w)
+            g.message = "Contents of album %s%s - %s%s:" % (c.y, artist,
+                                                            title, c.w)
             g.last_opened = ""
             g.last_search_query = original_term
             g.current_page = page
@@ -1101,12 +1105,11 @@ def search_album(term, page=1, splash=True):
             g.current_page = 1
             g.last_search_query = ""
 
+
 def get_songs_from_album(wdata):
     """Convert Musicbrainz album search to songlist. """
 
-    import xml.etree.ElementTree as ET
-
-    ns = {'mb':'http://musicbrainz.org/ns/mmd-2.0#'}
+    ns = {'mb': 'http://musicbrainz.org/ns/mmd-2.0#'}
     root = ET.fromstring(wdata)
     rlist = root.find("mb:release-list", namespaces=ns)
 
@@ -1114,7 +1117,8 @@ def get_songs_from_album(wdata):
         return None, None, None
 
     album = rlist.find("mb:release", namespaces=ns)
-    artist = album.find("./mb:artist-credit/mb:name-credit/mb:artist", namespaces=ns).find("mb:name", namespaces=ns).text
+    artist = album.find("./mb:artist-credit/mb:name-credit/mb:artist",
+                        namespaces=ns).find("mb:name", namespaces=ns).text
     title = album.find("mb:title", namespaces=ns).text
     aid = album.get('id')
 
@@ -1126,32 +1130,42 @@ def get_songs_from_album(wdata):
         return None, None, None
 
     root = ET.fromstring(wdata)
-    tlist = root.find("./mb:release/mb:medium-list/mb:medium/mb:track-list", namespaces=ns)
+    tlist = root.find("./mb:release/mb:medium-list/mb:medium/mb:track-list",
+                      namespaces=ns)
 
     songs = []
     for track in tlist.findall("mb:track", namespaces=ns):
         tr_title = track.find("./mb:recording/mb:title", namespaces=ns).text
         url = "http://pleer.com/search"
-        query = {"target": "tracks", "page": 1, "q": artist+" "+tr_title}
+        query = {"target": "tracks", "page": 1, "q": artist + " " + tr_title}
         wdata = _do_query(url, query, err='album track error')
+
         if not wdata:
             continue
+
         s = get_tracks_from_page(wdata)
+
         if not s:
             continue
+
         songs.append(s[0])
 
     return songs, artist, title
 
 
 def _do_query(url, query, err='query failed'):
+    """ Perform http request. """
+
     url = "%s?%s" % (url, urlencode(query))
+
     try:
         wdata = urlopen(url).read().decode("utf8")
+
     except (URLError, HTTPError) as e:
         g.message = "%s: %s (%s)" % (err, e, url)
         g.content = logo(c.r)
         return None
+
     return wdata
 
 
