@@ -1137,13 +1137,14 @@ def get_songs_from_album(wdata):
     for track in tlist.findall("mb:track", namespaces=ns):
         tr_title = track.find("./mb:recording/mb:title", namespaces=ns).text
         url = "http://pleer.com/search"
-        query = {"target": "tracks", "page": 1, "q": artist + " " + tr_title}
+        query = {"target": "tracks", "page": 1,
+                 "q": py2utf8_encode(artist) + " " + py2utf8_encode(tr_title)}
         wdata = _do_query(url, query, err='album track error')
 
         if not wdata:
             continue
 
-        s = get_tracks_from_page(wdata)
+        s = get_tracks_from_page(wdata.decode("utf8"))
 
         if not s:
             continue
@@ -1159,7 +1160,7 @@ def _do_query(url, query, err='query failed'):
     url = "%s?%s" % (url, urlencode(query))
 
     try:
-        wdata = urlopen(url).read().decode("utf8")
+        wdata = urlopen(url).read()
 
     except (URLError, HTTPError) as e:
         g.message = "%s: %s (%s)" % (err, e, url)
