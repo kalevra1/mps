@@ -1058,6 +1058,102 @@ def search(term, page=1, splash=True):
             g.current_page = 1
             g.last_search_query = ""
 
+def search_album(term, page=1, splash=True):
+    """Search for albums. """
+
+    if not term or len(term) < 2:
+        g.message = c.r + "Not enough input" + c.w
+        g.content = generate_songlist_display()
+
+    else:
+        original_term = term
+        url = "http://musicbrainz.org/ws/2/release/"
+        query = {"query": 'release:"%s" AND primarytype:album AND status:official' % (term)}
+        g.message = "Album search for '%s%s%s'" % (c.y, term, c.w)
+        full_url = "%s?%s" % (url, urlencode(query))
+
+        if full_url in g.url_memo:
+            songs = g.url_memo[full_url]
+
+        else:
+            if splash:
+                g.content = logo(c.b) + "\n\n"
+                screen_update()
+
+            wdata = _do_query(url, query) 
+            if not wdata:
+                return
+
+            songs, artist, title = get_songs_from_album(wdata)
+
+        if songs:
+            g.url_memo[full_url] = songs
+            g.model.songs = songs
+            g.message = "Contents of album %s%s - %s%s:" % (c.y, artist, title, c.w)
+            g.last_opened = ""
+            g.last_search_query = original_term
+            g.current_page = page
+            g.content = generate_songlist_display()
+
+        else:
+            g.message = "Found no album for %s%s%s" % (c.y, term, c.w)
+            g.content = logo(c.r)
+            g.current_page = 1
+            g.last_search_query = ""
+
+def get_songs_from_album(wdata):
+    """Convert Musicbrainz album search to songlist. """
+
+    import xml.etree.ElementTree as ET
+
+    ns = {'mb':'http://musicbrainz.org/ns/mmd-2.0#'}
+    root = ET.fromstring(wdata)
+    rlist = root.find("mb:release-list", namespaces=ns)
+
+    if int(rlist.get('count')) == 0:
+        return None, None, None
+
+    album = rlist.find("mb:release", namespaces=ns)
+    artist = album.find("./mb:artist-credit/mb:name-credit/mb:artist", namespaces=ns).find("mb:name", namespaces=ns).text
+    title = album.find("mb:title", namespaces=ns).text
+    aid = album.get('id')
+
+    url = "http://musicbrainz.org/ws/2/release/" + aid
+    query = {"inc": "recordings"}
+    wdata = _do_query(url, query, err='album search error')
+
+    if not wdata:
+        return None, None, None
+
+    root = ET.fromstring(wdata)
+    tlist = root.find("./mb:release/mb:medium-list/mb:medium/mb:track-list", namespaces=ns)
+
+    songs = []
+    for track in tlist.findall("mb:track", namespaces=ns):
+        tr_title = track.find("./mb:recording/mb:title", namespaces=ns).text
+        url = "http://pleer.com/search"
+        query = {"target": "tracks", "page": 1, "q": artist+" "+tr_title}
+        wdata = _do_query(url, query, err='album track error')
+        if not wdata:
+            continue
+        s = get_tracks_from_page(wdata)
+        if not s:
+            continue
+        songs.append(s[0])
+
+    return songs, artist, title
+
+
+def _do_query(url, query, err='query failed'):
+    url = "%s?%s" % (url, urlencode(query))
+    try:
+        wdata = urlopen(url).read().decode("utf8")
+    except (URLError, HTTPError) as e:
+        g.message = "%s: %s (%s)" % (err, e, url)
+        g.content = logo(c.r)
+        return None
+    return wdata
+
 
 def _make_fname(song):
     """" Create download directory, generate filename. """
@@ -1637,7 +1733,8 @@ def main():
         'playlist_rename': r'mv\s*(%s\s+%s)$' % (word, word),
         'playlist_remove': r'rmp\s*(\d+|%s)$' % word,
         'open_view_bynum': r'(open|view)\s*(\d{1,4})$',
-        'playlist_rename_idx': r'mv\s*(\d{1,3})\s*(%s)\s*$' % word
+        'playlist_rename_idx': r'mv\s*(\d{1,3})\s*(%s)\s*$' % word,
+        'search_album': r'(?:album)\s*(.{2,500})'
     }
 
     # compile regexp's
