@@ -1120,6 +1120,8 @@ def get_songs_from_album(wdata):
     artist = album.find("./mb:artist-credit/mb:name-credit/mb:artist",
                         namespaces=ns).find("mb:name", namespaces=ns).text
     title = album.find("mb:title", namespaces=ns).text
+    print("\nSearching for {0}{2}{1} by {0}{3}{1}\n".format(c.y, c.w, title,
+                                                        artist))
     aid = album.get('id')
 
     url = "http://musicbrainz.org/ws/2/release/" + aid
@@ -1136,20 +1138,26 @@ def get_songs_from_album(wdata):
     songs = []
     for track in tlist.findall("mb:track", namespaces=ns):
         tr_title = track.find("./mb:recording/mb:title", namespaces=ns).text
+        print("Search :  %s - %s" % (artist, tr_title))
         url = "http://pleer.com/search"
         query = {"target": "tracks", "page": 1,
-                 "q": py2utf8_encode(artist) + " " + py2utf8_encode(tr_title)}
+                 "q": "%s artist:%s" % (py2utf8_encode(tr_title),
+                                        py2utf8_encode(artist))}
         wdata = _do_query(url, query, err='album track error')
 
         if not wdata:
+            print("Nothing!")
             continue
 
         s = get_tracks_from_page(wdata.decode("utf8"))
 
         if not s:
+            print("Nothing!")
             continue
 
         songs.append(s[0])
+        print("Matched:  %s - %s\n" % (s[0]['singer'], s[0]['song']))
+        time.sleep(2)
 
     return songs, artist, title
 
