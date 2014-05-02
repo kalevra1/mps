@@ -1184,7 +1184,7 @@ def _make_fname(song):
 def _download(song, filename):
     """ Download file, show status, return filename. """
 
-    print("Downloading %s%s%s ..\n" % (c.g, non_utf8_encode(filename), c.w))
+    print("Downloading %s%s%s ..\n" % (c.g, filename, c.w))
     status_string = ('  {0}{1:,}{2} Bytes [{0}{3:.2%}{2}] received. Rate: '
                      '[{0}{4:4.0f} kbps{2}].  ETA: [{0}{5:.0f} secs{2}]')
     song['track_url'] = get_stream(song)
