@@ -660,6 +660,14 @@ def get_tracks_from_page(page):
     return songs
 
 
+def xprint(stuff):
+    """ Compatible print """
+
+    stuff = non_utf8_encode(stuff)
+    stuff = py2utf8_encode(stuff)
+    print(stuff)
+
+
 def screen_update():
     """ Display content, show message, blank screen."""
 
@@ -667,11 +675,10 @@ def screen_update():
         print("\n" * 200)
 
     if g.content:
-        g.content = non_utf8_encode(g.content)
-        print(py2utf8_encode(g.content))
+        xprint(g.content)
 
     if g.message:
-        print(g.message)
+        xprint(g.message)
 
     g.message = g.content = False
     g.noblank = False
@@ -1120,6 +1127,8 @@ def get_songs_from_album(wdata):
     artist = album.find("./mb:artist-credit/mb:name-credit/mb:artist",
                         namespaces=ns).find("mb:name", namespaces=ns).text
     title = album.find("mb:title", namespaces=ns).text
+    xprint("\nSearching for {0}{2}{1} by {0}{3}{1}\n".format(c.y, c.w, title,
+                                                        artist))
     aid = album.get('id')
 
     url = "http://musicbrainz.org/ws/2/release/" + aid
@@ -1136,20 +1145,26 @@ def get_songs_from_album(wdata):
     songs = []
     for track in tlist.findall("mb:track", namespaces=ns):
         tr_title = track.find("./mb:recording/mb:title", namespaces=ns).text
+        xprint("Search :  %s - %s" % (artist, tr_title))
         url = "http://pleer.com/search"
         query = {"target": "tracks", "page": 1,
-                 "q": py2utf8_encode(artist) + " " + py2utf8_encode(tr_title)}
+                 "q": "%s artist:%s" % (py2utf8_encode(tr_title),
+                                        py2utf8_encode(artist))}
         wdata = _do_query(url, query, err='album track error')
 
         if not wdata:
+            print("Nothing!")
             continue
 
         s = get_tracks_from_page(wdata.decode("utf8"))
 
         if not s:
+            print("Nothing!")
             continue
 
         songs.append(s[0])
+        xprint("Matched:  %s - %s\n" % (s[0]['singer'], s[0]['song']))
+        time.sleep(2)
 
     return songs, artist, title
 
@@ -1184,7 +1199,7 @@ def _make_fname(song):
 def _download(song, filename):
     """ Download file, show status, return filename. """
 
-    print("Downloading %s%s%s ..\n" % (c.g, filename, c.w))
+    xprint("Downloading %s%s%s ..\n" % (c.g, filename, c.w))
     status_string = ('  {0}{1:,}{2} Bytes [{0}{3:.2%}{2}] received. Rate: '
                      '[{0}{4:4.0f} kbps{2}].  ETA: [{0}{5:.0f} secs{2}]')
     song['track_url'] = get_stream(song)
