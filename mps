@@ -1083,7 +1083,7 @@ def search_album(term, page=1, splash=True):
         full_url = "%s?%s" % (url, urlencode(query))
 
         if full_url in g.url_memo:
-            songs, artist, title = g.url_memo[full_url]
+            songs, artist, title, ntracks = g.url_memo[full_url]
 
         else:
             if splash:
@@ -1094,13 +1094,14 @@ def search_album(term, page=1, splash=True):
             if not wdata:
                 return
 
-            songs, artist, title = get_songs_from_album(wdata)
+            songs, artist, title, ntracks = get_songs_from_album(wdata)
 
         if songs:
-            g.url_memo[full_url] = songs, artist, title
+            g.url_memo[full_url] = songs, artist, title, ntracks
             g.model.songs = songs
-            g.message = "Contents of album %s%s - %s%s:" % (c.y, artist,
-                                                            title, c.w)
+            g.message = "Contents of album %s%s - %s%s %s(%d/%d)%s:" % (
+                    c.y, artist, title, c.w, c.b, len(songs), ntracks, c.w
+                    )
             g.last_opened = ""
             g.last_search_query = original_term
             g.current_page = page
@@ -1143,11 +1144,14 @@ def get_songs_from_album(wdata):
                       namespaces=ns)
 
     songs = []
-    for track in tlist.findall("mb:track", namespaces=ns):
+    mb_songs = tlist.findall("mb:track", namespaces=ns)
+    for track in mb_songs:
         tr_title = track.find("./mb:recording/mb:title", namespaces=ns).text
+        tr_len = track.find("./mb:recording/mb:length", namespaces=ns).text
+        duration = int(tr_len)/60000.0
         xprint("Search :  %s - %s" % (artist, tr_title))
         url = "http://pleer.com/search"
-        query = {"target": "tracks", "page": 1,
+        query = {"target": "tracks", "page": 1, "quality":"best",
                  "q": "%s artist:%s" % (py2utf8_encode(tr_title),
                                         py2utf8_encode(artist))}
         wdata = _do_query(url, query, err='album track error')
@@ -1162,11 +1166,15 @@ def get_songs_from_album(wdata):
             print("Nothing!")
             continue
 
-        songs.append(s[0])
+        s_dur = [
+                song for song in s 
+                if duration == float(song['duration'].replace(":","."))
+                ]
+        songs.append(s_dur[0] if len(s_dur)>0 else s[0])
         xprint("Matched:  %s - %s\n" % (s[0]['singer'], s[0]['song']))
         time.sleep(2)
 
-    return songs, artist, title
+    return songs, artist, title, len(mb_songs)
 
 
 def _do_query(url, query, err='query failed'):
@@ -1745,6 +1753,7 @@ def main():
         'play': r'(%s{0,3})([-,\d\s]{1,250})\s*(%s{0,2})$' % (rs, rs),
         'quits': r'(?:q|quit|exit)$',
         'search': r'(?:search|\.|/)\s*(.{2,500})',
+        'search_album': r'(?:album|\/\/|\.\.)\s*(.{2,500})',
         'play_pl': r'play\s*(%s|\d+)$' % word,
         'download': r'(?:d|dl|download)\s*(\d{1,4})$',
         'nextprev': r'(n|p)$',
@@ -1764,7 +1773,6 @@ def main():
         'playlist_remove': r'rmp\s*(\d+|%s)$' % word,
         'open_view_bynum': r'(open|view)\s*(\d{1,4})$',
         'playlist_rename_idx': r'mv\s*(\d{1,3})\s*(%s)\s*$' % word,
-        'search_album': r'(?:album)\s*(.{2,500})'
     }
 
     # compile regexp's
