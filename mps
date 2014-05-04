@@ -32,6 +32,7 @@ import xml.etree.ElementTree as ET
 import unicodedata
 import subprocess
 import logging
+import difflib
 import random
 import socket
 import time
@@ -1117,12 +1118,13 @@ def search_album(term, page=1, splash=True):
 def get_songs_from_album(wdata):
     """Convert Musicbrainz album search to songlist. """
 
+    dtime = lambda x: time.strftime('%M:%S', time.gmtime(int(x)))
     ns = {'mb': 'http://musicbrainz.org/ns/mmd-2.0#'}
     root = ET.fromstring(wdata)
     rlist = root.find("mb:release-list", namespaces=ns)
 
     if int(rlist.get('count')) == 0:
-        return None, None, None
+        return None, None, None, None
 
     album = rlist.find("mb:release", namespaces=ns)
     artist = album.find("./mb:artist-credit/mb:name-credit/mb:artist",
@@ -1137,7 +1139,7 @@ def get_songs_from_album(wdata):
     wdata = _do_query(url, query, err='album search error')
 
     if not wdata:
-        return None, None, None
+        return None, None, None, None
 
     root = ET.fromstring(wdata)
     tlist = root.find("./mb:release/mb:medium-list/mb:medium/mb:track-list",
@@ -1145,36 +1147,58 @@ def get_songs_from_album(wdata):
 
     songs = []
     mb_songs = tlist.findall("mb:track", namespaces=ns)
+
     for track in mb_songs:
-        tr_title = track.find("./mb:recording/mb:title", namespaces=ns).text
-        tr_len = track.find("./mb:recording/mb:length", namespaces=ns).text
-        duration = int(tr_len)/60000.0
-        xprint("Search :  %s - %s" % (artist, tr_title))
+        mb_title = track.find("./mb:recording/mb:title", namespaces=ns).text
+        mb_len = track.find("./mb:recording/mb:length", namespaces=ns).text
+        mb_len = int(round(float(mb_len) / 1000))
+        xprint("Search :  %s - %s - %s" % (artist, mb_title, dtime(mb_len)))
         url = "http://pleer.com/search"
-        query = {"target": "tracks", "page": 1, "quality":"best",
-                 "q": "%s artist:%s" % (py2utf8_encode(tr_title),
-                                        py2utf8_encode(artist))}
+        query = {"target": "tracks", "page": 1, "q": "%s artist:%s" % (
+            py2utf8_encode(mb_title), py2utf8_encode(artist))}
         wdata = _do_query(url, query, err='album track error')
+        results = get_tracks_from_page(wdata.decode("utf8")) if wdata else None
 
-        if not wdata:
-            print("Nothing!")
+        if not results:
+            print("Nothing matched!\n")
+            time.sleep(1)
             continue
 
-        s = get_tracks_from_page(wdata.decode("utf8"))
-
-        if not s:
-            print("Nothing!")
-            continue
-
-        s_dur = [
-                song for song in s 
-                if duration == float(song['duration'].replace(":","."))
-                ]
-        songs.append(s_dur[0] if len(s_dur)>0 else s[0])
-        xprint("Matched:  %s - %s\n" % (s[0]['singer'], s[0]['song']))
-        time.sleep(2)
+        s = best_song_match(results, mb_title, mb_len)
+        songs.append(s)
+        time.sleep(1.5)
 
     return songs, artist, title, len(mb_songs)
+
+
+def best_song_match(songs, title, duration):
+    """ Select best matching song based on title, length and bitrate.
+
+    Score from 0 to 1 where 1 is best.
+
+    """
+
+    seqmatch = difflib.SequenceMatcher
+    candidates = []
+
+    for song in songs:
+        dur, tit = int(song['Rduration']), song['song']
+        bitr = int("".join(re.findall(r"\d", song['listrate'])))
+        title_score = seqmatch(None, title, tit).ratio()
+        bitrate_score = 1 - (320.0 - min(bitr, 320)) / 320.0
+        duration_score = 1 - float(abs(duration - dur)) / duration
+        duration_score = 0 if duration_score < 0 else duration_score
+
+        # apply weightings
+        score = duration_score * .5 + title_score * .3 + bitrate_score * .2
+        candidates.append((score, song))
+
+    best_score, best_song = max(candidates, key=lambda x: x[0])
+    pscore, s = int(100 * best_score), best_song
+    xprint("Matched:  %s - %s - %s (%s kbps) [score: %s]\n" % (
+        s['singer'], s['song'], s['duration'], s['listrate'], pscore))
+    return best_song
+
 
 
 def _do_query(url, query, err='query failed'):
