@@ -653,7 +653,9 @@ def get_tracks_from_page(page):
                     cursong["R" + f] = v.group(1)
 
                 else:
-                    raise Exception("problem with field " + f)
+                    cursong[f] = "unknown"
+                    cursong["R" + f] = "unknown"
+                    #raise Exception("problem with field " + f)
 
             cursong = get_average_bitrate(cursong)
             songs.append(cursong)
@@ -1131,6 +1133,7 @@ def search_album(term, page=1, splash=True, bitrate=g.album_tracks_bitrate):
 def get_songs_from_album(wdata, bitrate, term):
     """Convert Musicbrainz album search to songlist. """
 
+    dicthash = lambda d: str(hash(repr(sorted(d.items()))))
     dtime = lambda x: time.strftime('%M:%S', time.gmtime(int(x)))
     ns = {'mb': 'http://musicbrainz.org/ns/mmd-2.0#'}
     root = ET.fromstring(wdata)
@@ -1183,18 +1186,25 @@ def get_songs_from_album(wdata, bitrate, term):
         url = "http://pleer.com/search"
         query = {"target": "tracks", "page": 1, "q": "%s %s" % (
             py2utf8_encode(artist), py2utf8_encode(mb_title))}
-        wdata = _do_query(url, query, err='album track error')
+
+        if url + dicthash(query) in g.url_memo:
+            wdata = g.url_memo[url + dicthash(query)]
+
+        else:
+            wdata = _do_query(url, query, err='album track error')
+            time.sleep(1.5)
+            g.url_memo[url + dicthash(query)] = wdata
+
         results = get_tracks_from_page(wdata.decode("utf8")) if wdata else None
 
         if not results:
-            print("Nothing matched!\n")
-            time.sleep(1)
+            print(c.r + "Nothing matched!\n" + c.w)
             continue
 
         s = best_song_match(results, mb_title, mb_len, bitrate)
         songs.append(s)
-        time.sleep(1.5)
 
+    time.sleep(2)
     return songs, artist, title, len(mb_songs)
 
 
@@ -1222,7 +1232,7 @@ def best_song_match(songs, title, duration, bitrate):
 
     best_score, best_song = max(candidates, key=lambda x: x[0])
     pscore, s = int(100 * best_score), best_song
-    cc = c.g if pscore > 90 else c.y
+    cc = c.g if pscore > 89 else c.y
     cc = c.r if pscore < 75 else cc
     xprint("Matched:  %s%s - %s%s - %s %s kbps\n[%sMatch confidence: %s%s]"
            "\n" % (c.y, s['singer'], s['song'], c.w, s['duration'],
