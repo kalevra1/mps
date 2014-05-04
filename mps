@@ -1777,7 +1777,7 @@ def main():
         'play': r'(%s{0,3})([-,\d\s]{1,250})\s*(%s{0,2})$' % (rs, rs),
         'quits': r'(?:q|quit|exit)$',
         'search': r'(?:search|\.|/)\s*(.{2,500})',
-        'search_album': r'(?:album|\/\/|\.\.)\s*(.{2,500})',
+        'search_album': r'album\s+(.{2,500})',
         'play_pl': r'play\s*(%s|\d+)$' % word,
         'download': r'(?:d|dl|download)\s*(\d{1,4})$',
         'nextprev': r'(n|p)$',
