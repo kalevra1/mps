@@ -226,6 +226,7 @@ class g(object):
     """ Class for holding globals that are needed throught the module. """
 
     url_memo = {}
+    album_tracks_bitrate = 320
     model = Playlist(name="model")
     last_search_query = ""
     current_page = 1
@@ -1068,54 +1069,63 @@ def search(term, page=1, splash=True):
             g.last_search_query = ""
 
 
-def search_album(term, page=1, splash=True):
+def search_album(term, page=1, splash=True, bitrate=g.album_tracks_bitrate):
     """Search for albums. """
 
     if not term or len(term) < 2:
         g.message = c.r + "Not enough input" + c.w
         g.content = generate_songlist_display()
+        return
+
+    # check for user specified bitrate in search term
+    extract_digits = lambda x: int("".join(re.findall("\d", x)))
+    bitratespec = "\s*bitrate=\d+\s*"
+    matchobj = re.search(bitratespec, term)
+
+    if matchobj:
+        bitrate = extract_digits(matchobj.group(0))
+        term = re.sub(bitratespec, "", term)
+
+    original_term = term
+    url = "http://musicbrainz.org/ws/2/release/"
+    query = {"query": 'release:"%s" AND primarytype:album AND status:'
+                'official' % (term)}
+    g.message = "Album search for '%s%s%s'" % (c.y, term, c.w)
+    memo_url = "%s?%s" % (url, urlencode(query)) + "bitrate=" + str(bitrate)
+
+    if memo_url in g.url_memo:
+        songs, artist, title, ntracks = g.url_memo[memo_url]
 
     else:
-        original_term = term
-        url = "http://musicbrainz.org/ws/2/release/"
-        query = {"query": 'release:"%s" AND primarytype:album AND status:'
-                 'official' % (term)}
-        g.message = "Album search for '%s%s%s'" % (c.y, term, c.w)
-        full_url = "%s?%s" % (url, urlencode(query))
+        if splash:
+            g.content = logo(c.b) + "\n\n"
+            screen_update()
 
-        if full_url in g.url_memo:
-            songs, artist, title, ntracks = g.url_memo[full_url]
+        wdata = _do_query(url, query)
+        if not wdata:
+            return
 
-        else:
-            if splash:
-                g.content = logo(c.b) + "\n\n"
-                screen_update()
+        songs, artist, title, ntracks = get_songs_from_album(wdata, bitrate, term)
 
-            wdata = _do_query(url, query)
-            if not wdata:
-                return
+    if songs:
+        g.url_memo[memo_url] = songs, artist, title, ntracks
+        g.model.songs = songs
+        g.message = "Contents of album %s%s - %s%s %s(%d/%d)%s:" % (
+                c.y, artist, title, c.w, c.b, len(songs), ntracks, c.w
+                )
+        g.last_opened = ""
+        g.last_search_query = original_term
+        g.current_page = page
+        g.content = generate_songlist_display()
 
-            songs, artist, title, ntracks = get_songs_from_album(wdata)
-
-        if songs:
-            g.url_memo[full_url] = songs, artist, title, ntracks
-            g.model.songs = songs
-            g.message = "Contents of album %s%s - %s%s %s(%d/%d)%s:" % (
-                    c.y, artist, title, c.w, c.b, len(songs), ntracks, c.w
-                    )
-            g.last_opened = ""
-            g.last_search_query = original_term
-            g.current_page = page
-            g.content = generate_songlist_display()
-
-        else:
-            g.message = "Found no album for %s%s%s" % (c.y, term, c.w)
-            g.content = logo(c.r)
-            g.current_page = 1
-            g.last_search_query = ""
+    else:
+        g.message = "Found no album for %s%s%s" % (c.y, term, c.w)
+        g.content = logo(c.r)
+        g.current_page = 1
+        g.last_search_query = ""
 
 
-def get_songs_from_album(wdata):
+def get_songs_from_album(wdata, bitrate, term):
     """Convert Musicbrainz album search to songlist. """
 
     dtime = lambda x: time.strftime('%M:%S', time.gmtime(int(x)))
@@ -1130,9 +1140,21 @@ def get_songs_from_album(wdata):
     artist = album.find("./mb:artist-credit/mb:name-credit/mb:artist",
                         namespaces=ns).find("mb:name", namespaces=ns).text
     title = album.find("mb:title", namespaces=ns).text
-    xprint("\nSearching for {0}{2}{1} by {0}{3}{1}\n".format(c.y, c.w, title,
-                                                        artist))
+    title_artist_str = c.y + title + c.w, c.y + artist + c.w
+    g.content = logo(col=c.g)
+    g.message = ""
+    screen_update()
+    xprint("\nSearching for %s by %s" % title_artist_str)
+    xprint("Attempting to match bitrate of %s kbps" % bitrate)
+    prompt = "\nEnter to begin matching or [%sq%s] to return > " % (c.y, c.w)
+
+    if compat_input(prompt).strip():
+        return None, None, None, None
+
     aid = album.get('id')
+    g.content = logo(col=c.b)
+    g.message = ""
+    screen_update()
 
     url = "http://musicbrainz.org/ws/2/release/" + aid
     query = {"inc": "recordings"}
@@ -1147,6 +1169,7 @@ def get_songs_from_album(wdata):
 
     songs = []
     mb_songs = tlist.findall("mb:track", namespaces=ns)
+    print("\n")
 
     for track in mb_songs:
         mb_title = track.find("./mb:recording/mb:title", namespaces=ns).text
@@ -1154,8 +1177,8 @@ def get_songs_from_album(wdata):
         mb_len = int(round(float(mb_len) / 1000))
         xprint("Search :  %s - %s - %s" % (artist, mb_title, dtime(mb_len)))
         url = "http://pleer.com/search"
-        query = {"target": "tracks", "page": 1, "q": "%s artist:%s" % (
-            py2utf8_encode(mb_title), py2utf8_encode(artist))}
+        query = {"target": "tracks", "page": 1, "q": "%s %s" % (
+            py2utf8_encode(artist), py2utf8_encode(mb_title))}
         wdata = _do_query(url, query, err='album track error')
         results = get_tracks_from_page(wdata.decode("utf8")) if wdata else None
 
@@ -1164,14 +1187,14 @@ def get_songs_from_album(wdata):
             time.sleep(1)
             continue
 
-        s = best_song_match(results, mb_title, mb_len)
+        s = best_song_match(results, mb_title, mb_len, bitrate)
         songs.append(s)
         time.sleep(1.5)
 
     return songs, artist, title, len(mb_songs)
 
 
-def best_song_match(songs, title, duration):
+def best_song_match(songs, title, duration, bitrate):
     """ Select best matching song based on title, length and bitrate.
 
     Score from 0 to 1 where 1 is best.
@@ -1179,15 +1202,15 @@ def best_song_match(songs, title, duration):
     """
 
     seqmatch = difflib.SequenceMatcher
+    variance = lambda a, b: float(abs(a - b)) / max(a, b)
     candidates = []
 
     for song in songs:
         dur, tit = int(song['Rduration']), song['song']
         bitr = int("".join(re.findall(r"\d", song['listrate'])))
         title_score = seqmatch(None, title, tit).ratio()
-        bitrate_score = 1 - (320.0 - min(bitr, 320)) / 320.0
-        duration_score = 1 - float(abs(duration - dur)) / duration
-        duration_score = 0 if duration_score < 0 else duration_score
+        bitrate_score = 1 - variance(bitrate, bitr)
+        duration_score = 1 - variance(duration, dur)
 
         # apply weightings
         score = duration_score * .5 + title_score * .3 + bitrate_score * .2
@@ -1195,8 +1218,10 @@ def best_song_match(songs, title, duration):
 
     best_score, best_song = max(candidates, key=lambda x: x[0])
     pscore, s = int(100 * best_score), best_song
-    xprint("Matched:  %s - %s - %s (%s kbps) [score: %s]\n" % (
-        s['singer'], s['song'], s['duration'], s['listrate'], pscore))
+    cc = c.g if pscore > 90 else c.y
+    cc = c.r if pscore < 75 else cc
+    xprint("Matched:  %s - %s - %s %s kbps\n[%sMatch confidence: %s%s]\n" % (
+        s['singer'], s['song'], s['duration'], s['listrate'], cc, pscore, c.w))
     return best_song
 
 
