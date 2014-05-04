@@ -378,6 +378,9 @@ You can enter an artist/song name to search whenever the program is expecting
 text input. Searches must be prefixed with either a {2}.{1} or {2}/{1} \
 character.
 
+Search for albums by entering {2}album [albumname]{1} or:
+    {2}album [albumname] bitrate=192{1}
+
 When a list of songs is displayed, you can use the following commands:
 
 {0}Downloading{1}
@@ -1175,7 +1178,8 @@ def get_songs_from_album(wdata, bitrate, term):
         mb_title = track.find("./mb:recording/mb:title", namespaces=ns).text
         mb_len = track.find("./mb:recording/mb:length", namespaces=ns).text
         mb_len = int(round(float(mb_len) / 1000))
-        xprint("Search :  %s - %s - %s" % (artist, mb_title, dtime(mb_len)))
+        xprint("Search :  %s%s - %s%s - %s" % (c.y, artist, mb_title, c.w,
+                                               dtime(mb_len)))
         url = "http://pleer.com/search"
         query = {"target": "tracks", "page": 1, "q": "%s %s" % (
             py2utf8_encode(artist), py2utf8_encode(mb_title))}
@@ -1220,8 +1224,9 @@ def best_song_match(songs, title, duration, bitrate):
     pscore, s = int(100 * best_score), best_song
     cc = c.g if pscore > 90 else c.y
     cc = c.r if pscore < 75 else cc
-    xprint("Matched:  %s - %s - %s %s kbps\n[%sMatch confidence: %s%s]\n" % (
-        s['singer'], s['song'], s['duration'], s['listrate'], cc, pscore, c.w))
+    xprint("Matched:  %s%s - %s%s - %s %s kbps\n[%sMatch confidence: %s%s]"
+           "\n" % (c.y, s['singer'], s['song'], c.w, s['duration'],
+                   s['listrate'], cc, pscore, c.w))
     return best_song
 
 
