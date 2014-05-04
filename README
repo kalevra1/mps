@@ -9,9 +9,10 @@ mps
 Features
 --------
 - Search and stream music
+- Search entire albums
 - Create playlists
-- Download music
-- Works with Python 2.7 and 3.x
+- Download tracks
+- Works with Python 2.7+ and 3.3+
 - Works with Windows, Linux and Mac OS X 
 - No Python dependencies
 - Requires mplayer
