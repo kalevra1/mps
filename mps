@@ -1251,9 +1251,23 @@ def search_album(term, page=1, splash=True, bitrate=g.album_tracks_bitrate):
         show_message("Album '%s' by '%s' has 0 tracks!" % (title, artist))
         return
 
-    songs = _match_tracks(artist, title, bitrate, mb_tracks)
+    songs = []
+    itt = _match_tracks(artist, title, bitrate, mb_tracks)
+
+    while True:
+        try:
+            songs.append(next(itt))
+
+        except KeyboardInterrupt:
+            print("%sHalted!%s" % (c.r, c.w))
+            break
+
+        except StopIteration:
+            break
 
     if songs:
+        print("\n%s / %s songs matched" % (len(songs), len(mb_tracks)))
+        compat_input("Press Enter to continue")
         g.model.songs = songs
         g.message = "Contents of album %s%s - %s%s %s(%d/%d)%s:" % (
             c.y, artist, title, c.w, c.b, len(songs), len(mb_tracks), c.w)
@@ -1278,23 +1292,22 @@ def _match_tracks(artist, title, bitrate, mb_tracks):
     xprint("Attempting to match bitrate of %s kbps\n\n" % bitrate)
     url = "http://pleer.com/search"
     dtime = lambda x: time.strftime('%M:%S', time.gmtime(int(x)))
-    songs = []
 
     # do matching
     for track in mb_tracks:
         ttitle = track['title']
         length = track['length']
-        q = py2utf8_encode(artist) + " " + py2utf8_encode(ttitle)
-        q = py2utf8_encode(ttitle) if artist == "Various Artists" else q
         xprint("Search :  %s%s - %s%s - %s" % (c.y, artist, ttitle, c.w,
                                                dtime(length)))
+        q = py2utf8_encode(artist) + " " + py2utf8_encode(ttitle)
+        q = py2utf8_encode(ttitle) if artist == "Various Artists" else q
         query = {"target": "tracks", "page": 1, "q": q}
         wdata, fromcache = _do_query(url, query, err='album track error',
                                      report=True)
+        results = get_tracks_from_page(wdata.decode("utf8")) if wdata else None
+
         if not fromcache:
             time.sleep(1.5)
-
-        results = get_tracks_from_page(wdata.decode("utf8")) if wdata else None
 
         if not results:
             print(c.r + "Nothing matched :(\n" + c.w)
@@ -1306,10 +1319,7 @@ def _match_tracks(artist, title, bitrate, mb_tracks):
         xprint("Matched:  %s%s - %s%s - %s (%s kbps)\n[%sMatch confidence: "
                "%s%s]\n" % (c.y, s['singer'], s['song'], c.w, s['duration'],
                             s['listrate'], cc, score, c.w))
-
-        songs.append(s)
-
-    return songs
+        yield(s)
 
 
 def _get_mb_album(albumname, **kwa):
