@@ -31,10 +31,13 @@ __license__ = "GPLv3"
 import xml.etree.ElementTree as ET
 import unicodedata
 import subprocess
+import tempfile
 import logging
+import hashlib
 import difflib
 import random
 import socket
+import gzip
 import time
 import math
 import json
@@ -67,8 +70,8 @@ else:
     from urllib2 import build_opener, HTTPError, URLError
     from urllib import urlencode
     import cPickle as pickle
-    py2utf8_encode = lambda x: x.encode("utf8")
-    py2utf8_decode = lambda x: x.decode("utf8")
+    py2utf8_encode = lambda x: x.encode("utf8") if type(x) == unicode else x
+    py2utf8_decode = lambda x: x.decode("utf8") if type(x) == str else x
     compat_input = raw_input
 
 mswin = os.name == "nt"
@@ -170,8 +173,11 @@ class Config(object):
 
 
 if os.environ.get("mpsdebug") == '1':
-    logging.basicConfig(level=logging.DEBUG)
 
+    logfile = os.path.join(tempfile.gettempdir(), "mps.log")
+    logging.basicConfig(level=logging.DEBUG, filename=logfile)
+
+dbg = logging.debug
 
 try:
     import readline
@@ -185,6 +191,80 @@ opener = build_opener()
 ua = "Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; WOW64; Trident/5.0)"
 opener.addheaders = [("User-Agent", ua)]
 urlopen = opener.open
+
+
+class Memo(object):
+
+    """ Memo handling and creation. """
+
+    def __init__(self, filepath, life=60 * 60 * 24 * 3):
+        self.life = life
+        self.filepath = filepath
+        self.data = {}
+
+        if os.path.isfile(filepath):
+
+            try:
+
+                with gzip.open(filepath, "rb") as f:
+                    self.data = pickle.load(f)
+                    dbg("cache opened, %s items", len(self.data))
+
+            except (EOFError, IOError) as e:
+                dbg(str(e))
+
+        else:
+            dbg("No cache found!")
+
+        self.prune()
+
+    def add(self, key, val, lifespan=None):
+        """ Add key value pair, expire in lifespan seconds. """
+
+        key = key.encode("utf8")
+        key = hashlib.sha1(key).hexdigest()
+        lifespan = self.life if not lifespan else lifespan
+        expiry_time = int(time.time()) + lifespan
+        self.data[key] = dict(expire=expiry_time, data=val)
+        dbg("cache item added: %s", key)
+
+    def get(self, key):
+        """ Fetch a value if it exists and is fresh. """
+
+        now = int(time.time())
+        key = key.encode("utf8")
+        key = hashlib.sha1(key).hexdigest()
+
+        if key in self.data:
+
+            if self.data[key]['expire'] > now:
+                dbg("cache hit %s", key)
+                return self.data[key]['data']
+
+            else:
+                del self.data[key]
+                return None
+
+        return None
+
+    def prune(self):
+        """ Remove stale items. """
+
+        now = int(time.time())
+        dbg("Pruning: ")
+        stalekeys = [x for x in self.data if self.data[x]['expire'] < now]
+        dbg("%s stale keys; %s total kys", len(stalekeys), len(self.data))
+
+        for x in stalekeys:
+            del self.data[x]
+
+    def save(self):
+        """ Save memo file to persistent storage. """
+
+        self.prune()
+
+        with gzip.open(self.filepath, "wb") as f:
+            pickle.dump(self.data, f, protocol=2)
 
 
 class Playlist(object):
@@ -225,7 +305,6 @@ class g(object):
 
     """ Class for holding globals that are needed throught the module. """
 
-    url_memo = {}
     album_tracks_bitrate = 320
     model = Playlist(name="model")
     last_search_query = ""
@@ -240,6 +319,7 @@ class g(object):
     defaults = {setting: getattr(Config, setting) for setting in config}
     CFFILE = os.path.join(get_config_dir(), "config")
     PLFILE = os.path.join(get_config_dir(), "playlist")
+    memo = Memo(os.path.join(get_config_dir(), "cache" + sys.version[0:5]))
     OLD_CFFILE = os.path.join(os.path.expanduser("~"), ".pms-config")
     OLD_PLFILE = os.path.join(os.path.expanduser("~"), ".pms-playlist")
     READLINE_FILE = None
@@ -266,6 +346,14 @@ def saveconfig():
     pickle.dump(config, open(g.CFFILE, "wb"), protocol=2)
 
 
+def clearcache():
+    """ Clear the cache. """
+    g.memo.data = {}
+    g.memo.save()
+    g.content = generate_songlist_display()
+    g.message = c.r + "Cache cleared!" + c.w
+
+
 # override config if config file exists
 def loadconfig(pfile):
     """ Load config from file. """
@@ -277,6 +365,7 @@ def loadconfig(pfile):
 # Account for old versions
 if os.path.exists(g.CFFILE):
     loadconfig(g.CFFILE)
+
 elif os.path.exists(g.OLD_CFFILE):
     loadconfig(g.OLD_CFFILE)
     saveconfig()
@@ -378,8 +467,7 @@ You can enter an artist/song name to search whenever the program is expecting
 text input. Searches must be prefixed with either a {2}.{1} or {2}/{1} \
 character.
 
-Search for albums by entering {2}album <albumname>{1} or:
-    {2}album <albumname> bitrate=<bitrate>{1}
+Search for albums by entering {2}album [albumname]{1}
 
 When a list of songs is displayed, you can use the following commands:
 
@@ -525,6 +613,7 @@ def load_playlist(pfile):
     try:
         f = open(pfile, "rb")
         g.userpl = pickle.load(f)
+
     except IOError:
         g.userpl = {}
         save_to_file()
@@ -535,10 +624,12 @@ def open_from_file():
 
     if os.path.exists(g.PLFILE):
         load_playlist(g.PLFILE)
+
     elif os.path.exists(g.OLD_PLFILE):
         load_playlist(g.OLD_PLFILE)
         save_to_file()
         os.remove(g.OLD_PLFILE)
+
     else:
         g.userpl = {}
         save_to_file()
@@ -661,18 +752,23 @@ def get_tracks_from_page(page):
             songs.append(cursong)
 
     else:
-        logging.debug("got unexpected webpage or no search results")
+        dbg("got unexpected webpage or no search results")
         return False
 
     return songs
 
 
 def xprint(stuff):
-    """ Compatible print """
+    """ Compatible print. """
 
+    print(xenc(stuff))
+
+
+def xenc(stuff):
+    """ Encode for non utf8 environments and python 2. """
     stuff = non_utf8_encode(stuff)
     stuff = py2utf8_encode(stuff)
-    print(stuff)
+    return stuff
 
 
 def screen_update():
@@ -687,7 +783,7 @@ def screen_update():
     if g.message:
         xprint(g.message)
 
-    g.message = g.content = False
+    g.message = g.content = ""
     g.noblank = False
 
 
@@ -781,12 +877,14 @@ def generate_songlist_display(song=False):
         art, tit = uea_trunc(20, artist), uea_trunc(21, title)
         art, tit = uea_rpad(21, art), uea_rpad(22, tit)
         fmtrow = "%s%-6s %-7s %s %s %-8s %-7s%s\n"
+        size = str(size)[:3]
+        size = size[0:2] + " " if size[2] == "." else size
 
         if not song or song != songs[n]:
-            out += (fmtrow % (col, str(n + 1), str(size)[:3] + " Mb",
+            out += (fmtrow % (col, str(n + 1), size + " Mb",
                               art, tit, duration[:8], bitrate[:6], c.w))
         else:
-            out += (fmtrow % (c.p, str(n + 1), str(size)[:3] + " Mb",
+            out += (fmtrow % (c.p, str(n + 1), size + " Mb",
                               art, tit, duration[:8], bitrate[:6], c.w))
 
     return out + "\n" * (5 - len(songs)) if not song else out
@@ -800,15 +898,15 @@ def get_stream(song, force=False):
         url = url % song['link']
 
         try:
-            logging.debug("[0] fetching " + url)
+            dbg("[0] fetching " + url)
             wdata = urlopen(url, timeout=7).read().decode("utf8")
-            logging.debug("fetched " + url)
+            dbg("fetched " + url)
 
         except (HTTPError, socket.timeout):
             time.sleep(2)  # try again
-            logging.debug("[1] fetching 2nd attempt ")
+            dbg("[1] fetching 2nd attempt ")
             wdata = urlopen(url, timeout=7).read().decode("utf8")
-            logging.debug("fetched 2nd attempt" + url)
+            dbg("fetched 2nd attempt" + url)
 
         j = json.loads(wdata)
 
@@ -839,14 +937,14 @@ def playsong(song, failcount=0):
         return
 
     try:
-        logging.debug("getting content-length header for " + track_url)
+        dbg("getting content-length header for " + track_url)
         cl = opener.open(track_url, timeout=5).headers['content-length']
-        logging.debug("got CL header:" + (cl or "none"))
+        dbg("got CL header:" + (cl or "none"))
 
     except (IOError, KeyError):
         if failcount < 1:
             track_url = get_stream(song, force=True)
-            logging.debug("stale stream url..updating")
+            dbg("stale stream url..updating")
             song['track_url'] = track_url
             save_to_file()
             playsong(song, failcount=1)
@@ -856,7 +954,7 @@ def playsong(song, failcount=0):
 
     try:
         cmd = [Config.PLAYER] + Config.PLAYERARGS.split() + [song['track_url']]
-        logging.debug("starting mplayer with " + song['track_url'])
+        dbg("starting mplayer with " + song['track_url'])
 
         stdout = stderr = None
 
@@ -946,7 +1044,7 @@ def mplayer_status(popen_object, prefix="", songlength=0):
 
 
 def make_status_line(match_object, songlength=0, volume=None,
-                     progress_bar_size=61):
+                     progress_bar_size=60):
     """ Format progress line output.  """
 
     try:
@@ -994,26 +1092,20 @@ def top(period, page=1):
     tps = "past week,past 3 months,past 6 months,past year,all time".split(",")
     msg = ("%sTop tracks for %s%s" % (c.y, tps[period - 1], c.w))
     g.message = msg
-    logging.debug("[2] fetching " + url)
+    dbg("[2] fetching " + url)
 
-    if g.url_memo.get(url):
-        g.model.songs = g.url_memo[url]
+    try:
+        wdata = urlopen(url).read().decode("utf8")
 
-    else:
-        try:
-            wdata = urlopen(url).read().decode("utf8")
+    except (URLError, HTTPError) as e:
+        g.message = F('no data') % e
+        g.content = logo(c.r)
+        return
 
-        except (URLError, HTTPError) as e:
-            g.message = F('no data') % e
-            g.content = logo(c.r)
-            return
-
-        logging.debug("fetched " + url)
-        match = re.search(r"<ol id=\"search-results\">[\w\W]+?<\/ol>", wdata)
-        html_ol = match.group(0)
-        g.model.songs = get_tracks_from_page(html_ol)
-        g.url_memo[url] = g.model.songs if g.model.songs else None
-
+    dbg("fetched " + url)
+    match = re.search(r"<ol id=\"search-results\">[\w\W]+?<\/ol>", wdata)
+    html_ol = match.group(0)
+    g.model.songs = get_tracks_from_page(html_ol)
     g.content = generate_songlist_display()
 
 
@@ -1023,6 +1115,9 @@ def search(term, page=1, splash=True):
     if not term or len(term) < 2:
         g.message = c.r + "Not enough input" + c.w
         g.content = generate_songlist_display()
+
+    elif term == "albumsearch":
+        return
 
     else:
         original_term = term
@@ -1039,10 +1134,11 @@ def search(term, page=1, splash=True):
 
         query["q"] = term
         g.message = "Searching for '%s%s%s'" % (c.y, term, c.w)
+        query = [(k, query[k]) for k in sorted(query.keys())]
         url = "%s?%s" % (url, urlencode(query))
 
-        if url in g.url_memo:
-            songs = g.url_memo[url]
+        if g.memo.get(url):
+            songs = g.memo.get(url)
 
         else:
             if splash:
@@ -1058,8 +1154,10 @@ def search(term, page=1, splash=True):
                 g.content = logo(c.r)
                 return
 
+            if songs:
+                g.memo.add(url, songs)
+
         if songs:
-            g.url_memo[url] = songs
             g.model.songs = songs
             g.message = "Search results for %s%s%s" % (c.y, term, c.w)
             g.last_opened = ""
@@ -1074,126 +1172,106 @@ def search(term, page=1, splash=True):
             g.last_search_query = ""
 
 
+def show_message(message, col=c.r, update=False):
+    """ Show message using col, update screen if required. """
+
+    g.content = generate_songlist_display()
+    g.message = col + message + c.w
+
+    if update:
+        screen_update()
+
+
 def search_album(term, page=1, splash=True, bitrate=g.album_tracks_bitrate):
     """Search for albums. """
 
-    if not term or len(term) < 2:
-        g.message = c.r + "Not enough input" + c.w
-        g.content = generate_songlist_display()
-        return
+    #pylint: disable=R0914,R0912
+    if not term:
+        show_message("Enter album name:", c.g, update=True)
+        term = compat_input("> ")
 
-    # check for user specified bitrate in search term
-    extract_digits = lambda x: int("".join(re.findall("\d", x)))
-    bitratespec = "\s*bitrate=\d+\s*"
-    matchobj = re.search(bitratespec, term)
-
-    if matchobj:
-        bitrate = extract_digits(matchobj.group(0))
-        term = re.sub(bitratespec, "", term)
-
-    original_term = term
-    url = "http://musicbrainz.org/ws/2/release/"
-    query = {"query": 'release:"%s" AND primarytype:album AND status:'
-                'official' % (term)}
-    g.message = "Album search for '%s%s%s'" % (c.y, term, c.w)
-    memo_url = "%s?%s" % (url, urlencode(query)) + "bitrate=" + str(bitrate)
-
-    if memo_url in g.url_memo:
-        songs, artist, title, ntracks = g.url_memo[memo_url]
-
-    else:
-        if splash:
-            g.content = logo(c.b) + "\n\n"
-            screen_update()
-
-        wdata = _do_query(url, query)
-        if not wdata:
+        if not term or len(term) < 2:
+            g.message = c.r + "Not enough input!" + c.w
+            g.content = generate_songlist_display()
             return
 
-        songs, artist, title, ntracks = get_songs_from_album(wdata, bitrate, term)
+    album = _get_mb_album(term)
 
-    if songs:
-        g.url_memo[memo_url] = songs, artist, title, ntracks
-        g.model.songs = songs
-        g.message = "Contents of album %s%s - %s%s %s(%d/%d)%s:" % (
-                c.y, artist, title, c.w, c.b, len(songs), ntracks, c.w
-                )
-        g.last_opened = ""
-        g.last_search_query = original_term
-        g.current_page = page
-        g.content = generate_songlist_display()
+    if not album:
+        show_message("Album '%s' not found!" % term)
+        return
+
+    out = "Found '%s' by %s%s%s\n\n" % (album['title'],
+                                        c.g, album['artist'], c.w)
+    out += ("[q] to return, [Enter] to continue or enter artist name for:\n"
+            "    %s" % (c.y + term + c.w + "\n"))
+
+    g.message, g.content = out, logo(c.b)
+    screen_update()
+    prompt = xenc("Artist? [%s] > " % album['artist'])
+    artistentry = compat_input(prompt).strip()
+
+    if artistentry:
+
+        if artistentry == "q":
+            show_message("Album search abandoned!")
+            return
+
+        album = _get_mb_album(term, artist=artistentry)
+
+        if not album:
+            show_message("Album '%s' by '%s' not found!" % (term, artistentry))
+            return
+
+    msg = "%s%s%s by %s%s%s\n\n" % (c.g, album['title'], c.w,
+                                    c.g, album['artist'], c.w)
+    msg += "Enter [q] to abort or specify bitrate to match\n"
+
+    g.message = msg
+    g.content = logo(c.b) + "\n\n"
+    screen_update()
+    bitrate = g.album_tracks_bitrate
+    brentry = compat_input("Bitrate? [%s] > " % bitrate)
+
+    if brentry.isdigit():
+        bitrate = int(brentry)
+
+    elif brentry == "":
+        pass
 
     else:
-        g.message = "Found no album for %s%s%s" % (c.y, term, c.w)
-        g.content = logo(c.r)
-        g.current_page = 1
-        g.last_search_query = ""
+        show_message("Album search abandoned!")
+        return
 
+    mb_tracks = _get_mb_tracks(album['aid'])
+    artist = album['artist']
+    title = album['title']
+    title_artist_str = c.g + title + c.w, c.g + artist + c.w
 
-def get_songs_from_album(wdata, bitrate, term):
-    """Convert Musicbrainz album search to songlist. """
+    if not mb_tracks:
+        show_message("Album '%s' by '%s' has 0 tracks!" % (title, artist))
+        return
 
-    dicthash = lambda d: str(hash(repr(sorted(d.items()))))
-    dtime = lambda x: time.strftime('%M:%S', time.gmtime(int(x)))
-    ns = {'mb': 'http://musicbrainz.org/ns/mmd-2.0#'}
-    root = ET.fromstring(wdata)
-    rlist = root.find("mb:release-list", namespaces=ns)
-
-    if int(rlist.get('count')) == 0:
-        return None, None, None, None
-
-    album = rlist.find("mb:release", namespaces=ns)
-    artist = album.find("./mb:artist-credit/mb:name-credit/mb:artist",
-                        namespaces=ns).find("mb:name", namespaces=ns).text
-    title = album.find("mb:title", namespaces=ns).text
-    title_artist_str = c.y + title + c.w, c.y + artist + c.w
-    g.content = logo(col=c.g)
-    g.message = ""
-    screen_update()
+    print("\n" * 200)
     xprint("\nSearching for %s by %s" % title_artist_str)
-    xprint("Attempting to match bitrate of %s kbps" % bitrate)
-    prompt = "\nEnter to begin matching or [%sq%s] to return > " % (c.y, c.w)
-
-    if compat_input(prompt).strip():
-        return None, None, None, None
-
-    aid = album.get('id')
-    g.content = logo(col=c.b)
-    g.message = ""
-    screen_update()
-
-    url = "http://musicbrainz.org/ws/2/release/" + aid
-    query = {"inc": "recordings"}
-    wdata = _do_query(url, query, err='album search error')
-
-    if not wdata:
-        return None, None, None, None
-
-    root = ET.fromstring(wdata)
-    tlist = root.find("./mb:release/mb:medium-list/mb:medium/mb:track-list",
-                      namespaces=ns)
-
+    xprint("Attempting to match bitrate of %s kbps\n\n" % bitrate)
+    url = "http://pleer.com/search"
+    dtime = lambda x: time.strftime('%M:%S', time.gmtime(int(x)))
     songs = []
-    mb_songs = tlist.findall("mb:track", namespaces=ns)
-    print("\n")
 
-    for track in mb_songs:
-        mb_title = track.find("./mb:recording/mb:title", namespaces=ns).text
-        mb_len = track.find("./mb:recording/mb:length", namespaces=ns).text
-        mb_len = int(round(float(mb_len) / 1000))
-        xprint("Search :  %s%s - %s%s - %s" % (c.y, artist, mb_title, c.w,
-                                               dtime(mb_len)))
-        url = "http://pleer.com/search"
-        query = {"target": "tracks", "page": 1, "q": "%s %s" % (
-            py2utf8_encode(artist), py2utf8_encode(mb_title))}
-
-        if url + dicthash(query) in g.url_memo:
-            wdata = g.url_memo[url + dicthash(query)]
-
-        else:
-            wdata = _do_query(url, query, err='album track error')
+    # do matching
+    for track in mb_tracks:
+        ttitle = track['title']
+        length = track['length']
+        q = py2utf8_encode(artist) + " " + py2utf8_encode(ttitle)
+        q = py2utf8_encode(ttitle) if artist == "Various Artists" else q
+        xprint("Search :  %s%s - %s%s - %s" % (c.y, artist, ttitle, c.w,
+                                               dtime(length)))
+        query = {"target": "tracks", "page": 1, "q": q}
+        wdata, fromcache = _do_query(url, query, err='album track error',
+                                     report=True)
+        if not fromcache:
             time.sleep(1.5)
-            g.url_memo[url + dicthash(query)] = wdata
 
         results = get_tracks_from_page(wdata.decode("utf8")) if wdata else None
 
@@ -1201,20 +1279,98 @@ def get_songs_from_album(wdata, bitrate, term):
             print(c.r + "Nothing matched!\n" + c.w)
             continue
 
-        s = best_song_match(results, mb_title, mb_len, bitrate)
+        s, score = _best_song_match(results, ttitle, length, bitrate)
+        cc = c.g if score > 89 else c.y
+        cc = c.r if score < 75 else cc
+        xprint("Matched:  %s%s - %s%s - %s (%s kbps)\n[%sMatch confidence: "
+               "%s%s]\n" % (c.y, s['singer'], s['song'], c.w, s['duration'],
+                            s['listrate'], cc, score, c.w))
+
         songs.append(s)
 
-    time.sleep(2)
-    return songs, artist, title, len(mb_songs)
+    if songs:
+        g.model.songs = songs
+        g.message = "Contents of album %s%s - %s%s %s(%d/%d)%s:" % (
+            c.y, artist, title, c.w, c.b, len(songs), len(mb_tracks), c.w)
+        g.last_opened = ""
+        g.last_search_query = ""
+        g.current_page = page
+        g.content = generate_songlist_display()
+
+    else:
+        g.message = "Found no album tracks for %s%s%s" % (c.y, title, c.w)
+        g.content = generate_songlist_display()
+        g.current_page = 1
+        g.last_search_query = ""
 
 
-def best_song_match(songs, title, duration, bitrate):
+def _get_mb_album(albumname, **kwa):
+    """ Return artist, album title and track count from MusicBrainz. """
+
+    url = "http://musicbrainz.org/ws/2/release/"
+    qargs = dict(
+        release='"%s"' % albumname,
+        primarytype=kwa.get("primarytype", "album"),
+        status=kwa.get("status", "official"))
+    qargs.update({k: '"%s"' % v for k, v in kwa.items()})
+    qargs = ["%s:%s" % item for item in qargs.items()]
+    qargs = {"query": " AND ".join(qargs)}
+    g.message = "Album search for '%s%s%s'" % (c.y, albumname, c.w)
+    wdata = _do_query(url, qargs)
+
+    if not wdata:
+        return None
+
+    ns = {'mb': 'http://musicbrainz.org/ns/mmd-2.0#'}
+    root = ET.fromstring(wdata)
+    rlist = root.find("mb:release-list", namespaces=ns)
+
+    if int(rlist.get('count')) == 0:
+        return None
+
+    album = rlist.find("mb:release", namespaces=ns)
+    artist = album.find("./mb:artist-credit/mb:name-credit/mb:artist",
+                        namespaces=ns).find("mb:name", namespaces=ns).text
+    title = album.find("mb:title", namespaces=ns).text
+    aid = album.get('id')
+    return dict(artist=artist, title=title, aid=aid)
+
+
+def _get_mb_tracks(albumid):
+    """ Get track listing from MusicBraiz by album id. """
+
+    ns = {'mb': 'http://musicbrainz.org/ns/mmd-2.0#'}
+    url = "http://musicbrainz.org/ws/2/release/" + albumid
+    query = {"inc": "recordings"}
+    wdata = _do_query(url, query, err='album search error')
+
+    if not wdata:
+        return None
+
+    root = ET.fromstring(wdata)
+    tlist = root.find("./mb:release/mb:medium-list/mb:medium/mb:track-list",
+                      namespaces=ns)
+    mb_songs = tlist.findall("mb:track", namespaces=ns)
+
+    tracks = []
+
+    for track in mb_songs:
+        title = track.find("./mb:recording/mb:title", namespaces=ns).text
+        rawlength = track.find("./mb:recording/mb:length", namespaces=ns).text
+        length = int(round(float(rawlength) / 1000))
+        tracks.append(dict(title=title, length=length, rawlength=rawlength))
+
+    return tracks
+
+
+def _best_song_match(songs, title, duration, bitrate):
     """ Select best matching song based on title, length and bitrate.
 
     Score from 0 to 1 where 1 is best.
 
     """
 
+    # pylint: disable=R0914
     seqmatch = difflib.SequenceMatcher
     variance = lambda a, b: float(abs(a - b)) / max(a, b)
     candidates = []
@@ -1231,20 +1387,24 @@ def best_song_match(songs, title, duration, bitrate):
         candidates.append((score, song))
 
     best_score, best_song = max(candidates, key=lambda x: x[0])
-    pscore, s = int(100 * best_score), best_song
-    cc = c.g if pscore > 89 else c.y
-    cc = c.r if pscore < 75 else cc
-    xprint("Matched:  %s%s - %s%s - %s %s kbps\n[%sMatch confidence: %s%s]"
-           "\n" % (c.y, s['singer'], s['song'], c.w, s['duration'],
-                   s['listrate'], cc, pscore, c.w))
-    return best_song
+    percent_score = int(100 * best_score)
+    return best_song, percent_score
 
 
+def _do_query(url, query, err='query failed', cache=True, report=False):
+    """ Perform http request.
 
-def _do_query(url, query, err='query failed'):
-    """ Perform http request. """
+    if cache is True, memo is utilised
+    if report is True, return whether response is from memo
 
+    """
+
+    # convert query to sorted list of tuples (needed for consistent url_memo)
+    query = [(k, query[k]) for k in sorted(query.keys())]
     url = "%s?%s" % (url, urlencode(query))
+
+    if cache and g.memo.get(url):
+        return g.memo.get(url) if not report else (g.memo.get(url), True)
 
     try:
         wdata = urlopen(url).read()
@@ -1252,9 +1412,12 @@ def _do_query(url, query, err='query failed'):
     except (URLError, HTTPError) as e:
         g.message = "%s: %s (%s)" % (err, e, url)
         g.content = logo(c.r)
-        return None
+        return None if not report else (None, False)
 
-    return wdata
+    if cache and wdata:
+        g.memo.add(url, wdata)
+
+    return wdata if not report else (wdata, False)
 
 
 def _make_fname(song):
@@ -1275,9 +1438,9 @@ def _download(song, filename):
     status_string = ('  {0}{1:,}{2} Bytes [{0}{3:.2%}{2}] received. Rate: '
                      '[{0}{4:4.0f} kbps{2}].  ETA: [{0}{5:.0f} secs{2}]')
     song['track_url'] = get_stream(song)
-    logging.debug("[4] fetching url " + song['track_url'])
+    dbg("[4] fetching url " + song['track_url'])
     resp = urlopen(song['track_url'])
-    logging.debug("fetched url " + song['track_url'])
+    dbg("fetched url " + song['track_url'])
     total = int(resp.info()['Content-Length'].strip())
     chunksize, bytesdone, t0 = 16384, 0, time.time()
     outfh = open(filename, 'wb')
@@ -1492,7 +1655,7 @@ def play(pre, choice, post=""):
         selection = _parse_multi(choice)
         debug = ("shuffle=" + str(shuffle) + " : repeat=" +
                  str(repeat) + " : " + str(selection))
-        logging.debug(debug)
+        dbg(debug)
         songlist = [g.model.songs[x - 1] for x in selection]
         play_range(songlist, shuffle, repeat)
 
@@ -1541,8 +1704,10 @@ def play_range(songlist, shuffle=False, repeat=False):
         for n, song in enumerate(songlist):
             g.content = playback_progress(n, songlist, repeat=False)
             screen_update()
+
             try:
                 playsong(song)
+
             except KeyboardInterrupt:
                 print("Stopping...")
                 time.sleep(1)
@@ -1587,6 +1752,7 @@ def quits(showlogo=True):
     if has_readline:
         readline.write_history_file(g.READLINE_FILE)
 
+    g.memo.save()
     msg = ("\n" * 200) + logo(c.r, version=__version__) if showlogo else ""
     vermsg = ""
     print(msg + F("exitmsg", 2))
@@ -1796,7 +1962,6 @@ def main():
     # update screen
     g.content = generate_songlist_display()
     g.content = logo(col=c.g, version=__version__) + "\n"
-    #g.message = "Welcome!"
     g.message = "Enter .artist/song name to search or [h]elp"
     screen_update()
 
@@ -1816,8 +1981,8 @@ def main():
         'plist': r'.*(list[\da-zA-Z]{8,14})$',
         'play': r'(%s{0,3})([-,\d\s]{1,250})\s*(%s{0,2})$' % (rs, rs),
         'quits': r'(?:q|quit|exit)$',
-        'search': r'(?:search|\.|/)\s*(.{2,500})',
-        'search_album': r'album\s+(.{2,500})',
+        'search': r'(?:search|\.|/)\s*(.{0,500})',
+        'search_album': r'album\s*(.{0,500})',
         'play_pl': r'play\s*(%s|\d+)$' % word,
         'download': r'(?:d|dl|download)\s*(\d{1,4})$',
         'nextprev': r'(n|p)$',
@@ -1827,6 +1992,7 @@ def main():
         'setconfig': r'set\s*(\w+)\s*"?([^"]*)"?\s*$',
         'show_help': r'(?:help|h)$',
         'add_rm_all': r'(rm|add)\s*all$',
+        'clearcache': r'clearcache$',
         #'showconfig': r'(showconfig)',
         'showconfig': r'(set|showconfig)\s*$',
         'playlist_add': r'add\s*(-?\d[-,\d\s]{1,250})(%s)$' % word,
