@@ -1204,7 +1204,7 @@ def search_album(term, page=1, splash=True, bitrate=g.album_tracks_bitrate):
         return
 
     out = "'%s' by %s%s%s\n\n" % (album['title'],
-                                        c.g, album['artist'], c.w)
+                                  c.g, album['artist'], c.w)
     out += ("[Enter] to continue, [q] to abort, or enter artist name for:\n"
             "    %s" % (c.y + term + c.w + "\n"))
 
@@ -1225,14 +1225,14 @@ def search_album(term, page=1, splash=True, bitrate=g.album_tracks_bitrate):
             show_message("Album '%s' by '%s' not found!" % (term, artistentry))
             return
 
+    title, artist = album['title'], album['artist']
     mb_tracks = _get_mb_tracks(album['aid'])
 
     if not mb_tracks:
         show_message("Album '%s' by '%s' has 0 tracks!" % (title, artist))
         return
 
-    msg = "%s%s%s by %s%s%s\n\n" % (c.g, album['title'], c.w,
-                                    c.g, album['artist'], c.w)
+    msg = "%s%s%s by %s%s%s\n\n" % (c.g, title, c.w, c.g, artist, c.w)
     msg += "Specify bitrate to match or [q] to abort"
     g.message = msg
     g.content = "Tracks:\n"
@@ -1255,14 +1255,12 @@ def search_album(term, page=1, splash=True, bitrate=g.album_tracks_bitrate):
         show_message("Album search abandoned!")
         return
 
-    artist = album['artist']
-    title = album['title']
-
-
     songs = []
+    print("\n" * 200)
     itt = _match_tracks(artist, title, bitrate, mb_tracks)
 
     while True:
+
         try:
             songs.append(next(itt))
 
@@ -1294,7 +1292,7 @@ def search_album(term, page=1, splash=True, bitrate=g.album_tracks_bitrate):
 def _match_tracks(artist, title, bitrate, mb_tracks):
     """ Match list of tracks in mb_tracks by performing multiple searches. """
 
-    print("\n" * 200)
+    #pylint: disable=R0914
     title_artist_str = c.g + title + c.w, c.g + artist + c.w
     xprint("\nSearching for %s by %s" % title_artist_str)
     xprint("Attempting to match bitrate of %s kbps\n\n" % bitrate)
