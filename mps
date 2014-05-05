@@ -1246,13 +1246,34 @@ def search_album(term, page=1, splash=True, bitrate=g.album_tracks_bitrate):
     mb_tracks = _get_mb_tracks(album['aid'])
     artist = album['artist']
     title = album['title']
-    title_artist_str = c.g + title + c.w, c.g + artist + c.w
 
     if not mb_tracks:
         show_message("Album '%s' by '%s' has 0 tracks!" % (title, artist))
         return
 
+    songs = _match_tracks(artist, title, bitrate, mb_tracks)
+
+    if songs:
+        g.model.songs = songs
+        g.message = "Contents of album %s%s - %s%s %s(%d/%d)%s:" % (
+            c.y, artist, title, c.w, c.b, len(songs), len(mb_tracks), c.w)
+        g.last_opened = ""
+        g.last_search_query = ""
+        g.current_page = page
+        g.content = generate_songlist_display()
+
+    else:
+        g.message = "Found no album tracks for %s%s%s" % (c.y, title, c.w)
+        g.content = generate_songlist_display()
+        g.current_page = 1
+        g.last_search_query = ""
+
+
+def _match_tracks(artist, title, bitrate, mb_tracks):
+    """ Match list of tracks in mb_tracks by performing multiple searches. """
+
     print("\n" * 200)
+    title_artist_str = c.g + title + c.w, c.g + artist + c.w
     xprint("\nSearching for %s by %s" % title_artist_str)
     xprint("Attempting to match bitrate of %s kbps\n\n" % bitrate)
     url = "http://pleer.com/search"
@@ -1276,7 +1297,7 @@ def search_album(term, page=1, splash=True, bitrate=g.album_tracks_bitrate):
         results = get_tracks_from_page(wdata.decode("utf8")) if wdata else None
 
         if not results:
-            print(c.r + "Nothing matched!\n" + c.w)
+            print(c.r + "Nothing matched :(\n" + c.w)
             continue
 
         s, score = _best_song_match(results, ttitle, length, bitrate)
@@ -1288,20 +1309,7 @@ def search_album(term, page=1, splash=True, bitrate=g.album_tracks_bitrate):
 
         songs.append(s)
 
-    if songs:
-        g.model.songs = songs
-        g.message = "Contents of album %s%s - %s%s %s(%d/%d)%s:" % (
-            c.y, artist, title, c.w, c.b, len(songs), len(mb_tracks), c.w)
-        g.last_opened = ""
-        g.last_search_query = ""
-        g.current_page = page
-        g.content = generate_songlist_display()
-
-    else:
-        g.message = "Found no album tracks for %s%s%s" % (c.y, title, c.w)
-        g.content = generate_songlist_display()
-        g.current_page = 1
-        g.last_search_query = ""
+    return songs
 
 
 def _get_mb_album(albumname, **kwa):
