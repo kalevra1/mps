@@ -9,7 +9,7 @@ mps
 Features
 --------
 - Search and stream music
-- Search entire albums
+- Search albums or single tracks
 - Create playlists
 - Download tracks
 - Works with Python 2.7+ and 3.3+
@@ -109,10 +109,12 @@ Enter ``h`` from within the program for help.
 Searching
 ~~~~~~~~~
 
-You can enter an artist/song name to search whenever the program is expecting
-text input. Searches must be prefixed with either a . or / character.
+You can enter an artist/song name to search for songs.
+Track earches must be prefixed with either a . or / character.
 
 Enter ``n`` or ``p`` to go to the next / previous page of results
+
+To search for an album, enter ``album`` optionally followed by the album title.
 
 When a list of songs is displayed, such as search results or a playlist, you
 can use the following commands:
