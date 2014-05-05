@@ -37,7 +37,7 @@ import hashlib
 import difflib
 import random
 import socket
-import gzip
+import zlib
 import time
 import math
 import json
@@ -77,6 +77,8 @@ else:
 mswin = os.name == "nt"
 non_utf8 = mswin or not "UTF-8" in os.environ.get("LANG", "")
 member_var = lambda x: not(x.startswith("__") or callable(x))
+zcomp = lambda v: zlib.compress(pickle.dumps(v, protocol=2), 9)
+zdecomp = lambda v: pickle.loads(zlib.decompress(v))
 
 
 def non_utf8_encode(txt):
@@ -206,7 +208,7 @@ class Memo(object):
 
             try:
 
-                with gzip.open(filepath, "rb") as f:
+                with open(filepath, "rb") as f:
                     self.data = pickle.load(f)
                     dbg("cache opened, %s items", len(self.data))
 
@@ -225,7 +227,7 @@ class Memo(object):
         key = hashlib.sha1(key).hexdigest()
         lifespan = self.life if not lifespan else lifespan
         expiry_time = int(time.time()) + lifespan
-        self.data[key] = dict(expire=expiry_time, data=val)
+        self.data[key] = dict(expire=expiry_time, data=zcomp(val))
         dbg("cache item added: %s", key)
 
     def get(self, key):
@@ -239,7 +241,7 @@ class Memo(object):
 
             if self.data[key]['expire'] > now:
                 dbg("cache hit %s", key)
-                return self.data[key]['data']
+                return zdecomp(self.data[key]['data'])
 
             else:
                 del self.data[key]
@@ -263,7 +265,7 @@ class Memo(object):
 
         self.prune()
 
-        with gzip.open(self.filepath, "wb") as f:
+        with open(self.filepath, "wb") as f:
             pickle.dump(self.data, f, protocol=2)
 
 
@@ -1201,9 +1203,9 @@ def search_album(term, page=1, splash=True, bitrate=g.album_tracks_bitrate):
         show_message("Album '%s' not found!" % term)
         return
 
-    out = "Found '%s' by %s%s%s\n\n" % (album['title'],
+    out = "'%s' by %s%s%s\n\n" % (album['title'],
                                         c.g, album['artist'], c.w)
-    out += ("[q] to return, [Enter] to continue or enter artist name for:\n"
+    out += ("[Enter] to continue, [q] to abort, or enter artist name for:\n"
             "    %s" % (c.y + term + c.w + "\n"))
 
     g.message, g.content = out, logo(c.b)
@@ -1223,12 +1225,22 @@ def search_album(term, page=1, splash=True, bitrate=g.album_tracks_bitrate):
             show_message("Album '%s' by '%s' not found!" % (term, artistentry))
             return
 
+    mb_tracks = _get_mb_tracks(album['aid'])
+
+    if not mb_tracks:
+        show_message("Album '%s' by '%s' has 0 tracks!" % (title, artist))
+        return
+
     msg = "%s%s%s by %s%s%s\n\n" % (c.g, album['title'], c.w,
                                     c.g, album['artist'], c.w)
-    msg += "Enter [q] to abort or specify bitrate to match\n"
-
+    msg += "Specify bitrate to match or [q] to abort"
     g.message = msg
-    g.content = logo(c.b) + "\n\n"
+    g.content = "Tracks:\n"
+    for n, track in enumerate(mb_tracks, 1):
+        g.content += "%02s  %s" % (n, track['title'])
+        g.content += "\n"
+
+    #g.content = logo(c.b) + "\n\n"
     screen_update()
     bitrate = g.album_tracks_bitrate
     brentry = compat_input("Bitrate? [%s] > " % bitrate)
@@ -1243,13 +1255,9 @@ def search_album(term, page=1, splash=True, bitrate=g.album_tracks_bitrate):
         show_message("Album search abandoned!")
         return
 
-    mb_tracks = _get_mb_tracks(album['aid'])
     artist = album['artist']
     title = album['title']
 
-    if not mb_tracks:
-        show_message("Album '%s' by '%s' has 0 tracks!" % (title, artist))
-        return
 
     songs = []
     itt = _match_tracks(artist, title, bitrate, mb_tracks)
@@ -1319,7 +1327,7 @@ def _match_tracks(artist, title, bitrate, mb_tracks):
         xprint("Matched:  %s%s - %s%s - %s (%s kbps)\n[%sMatch confidence: "
                "%s%s]\n" % (c.y, s['singer'], s['song'], c.w, s['duration'],
                             s['listrate'], cc, score, c.w))
-        yield(s)
+        yield s
 
 
 def _get_mb_album(albumname, **kwa):
