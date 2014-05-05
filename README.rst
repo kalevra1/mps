@@ -110,7 +110,7 @@ Searching
 ~~~~~~~~~
 
 You can enter an artist/song name to search for songs.
-Track earches must be prefixed with either a . or / character.
+Track searches must be prefixed with either a . or / character.
 
 Enter ``n`` or ``p`` to go to the next / previous page of results
 
