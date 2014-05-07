@@ -13,15 +13,13 @@ except ImportError:
     from distutils.core import setup
 
 readme = open("README.rst").read()
-license = open("LICENSE").read()
 
 setup(
     name="mps",
-    version="0.20.12",
+    version="0.20.14",
     description="Search, Stream and Download MP3",
     keywords=["MP3", "music", "audio", "search", "stream", "download"],
     author="nagev",
-    license=license,
     long_description=readme,
     author_email="np1nagev@gmail.com",
     url="http://github.com/np1/mps/",
