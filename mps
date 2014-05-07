@@ -714,11 +714,17 @@ def get_average_bitrate(song):
     """ Calculate average bitrate of VBR tracks. """
 
     if song["rate"] == "VBR":
-        vbrsize = float(song["Rsize"][:-3]) * 10000
+        vbrsize = float(song["Rsize"][:-3]) * 8192
         vbrlen = float(song["Rduration"])
-        vbrabr = str(int(vbrsize / vbrlen))
-        song["listrate"] = vbrabr + " v"  # for display in list
-        song["rate"] = vbrabr + " Kb/s VBR"  # for playback display
+        vbrabr = int(vbrsize / vbrlen)
+
+        # fix some songs reporting large bitrates
+        if vbrabr > 320:
+            dbg("---- %s => bitrate: %s", song["song"], str(vbrabr))
+            vbrabr = 320
+
+        song["listrate"] = str(vbrabr) + " v"  # for display in list
+        song["rate"] = str(vbrabr) + " Kb/s VBR"  # for playback display
 
     else:
         song["listrate"] = song["rate"][:3]  # not vbr list display
