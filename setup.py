@@ -17,7 +17,7 @@ license = open("LICENSE").read()
 
 setup(
     name="mps",
-    version="0.20.09",
+    version="0.20.10",
     description="Search, Stream and Download MP3",
     keywords=["MP3", "music", "audio", "search", "stream", "download"],
     author="nagev",
@@ -33,7 +33,6 @@ setup(
         "Operating System :: POSIX :: Linux",
         "Environment :: Console",
         "Programming Language :: Python",
-        "Programming Language :: Python :: 2",
         "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.0",
