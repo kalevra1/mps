@@ -1,13 +1,5 @@
-Version 0.20.14
-May 7 2014
-
- - Added album search feature (vixus0)
-    (enter "album" optionally followed by album name to search)
- - Remove decimal point from size in results when not needed
- - Fix progress bar size exceeds terminal width
- - Added cache to persistent storage for http search requests
-    cached items expire after 3 days
-    use "clearcache" command to force clear cache
+Version 0.20.15
+Development version - not yet released
 
 -------------------------------------------------------------------------------
 
