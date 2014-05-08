@@ -81,6 +81,12 @@ zcomp = lambda v: zlib.compress(pickle.dumps(v, protocol=2), 9)
 zdecomp = lambda v: pickle.loads(zlib.decompress(v))
 
 
+def dbg(*a, **b):
+    """ Dumy function. """
+
+    pass
+
+
 def non_utf8_encode(txt):
     """ Encoding for Windows. """
 
@@ -173,13 +179,6 @@ class Config(object):
     SHOW_MPLAYER_KEYS = True
     DDIR = get_default_ddir()
 
-
-if os.environ.get("mpsdebug") == '1':
-
-    logfile = os.path.join(tempfile.gettempdir(), "mps.log")
-    logging.basicConfig(level=logging.DEBUG, filename=logfile)
-
-dbg = logging.debug
 
 try:
     import readline
@@ -307,12 +306,13 @@ class g(object):
 
     """ Class for holding globals that are needed throught the module. """
 
+    debug_mode = False
     album_tracks_bitrate = 320
     model = Playlist(name="model")
     last_search_query = ""
     current_page = 1
     active = Playlist(name="active")
-    noblank = False
+    blank_text = "\n" * 200
     text = {}
     userpl = {}
     last_opened = message = content = ""
@@ -651,7 +651,7 @@ def logo(col=None, version=""):
                               888   %s%s
                               888%s
       """ % (c.w + "v" + version if version else "", col, c.w)
-    return LOGO + c.w
+    return LOGO + c.w if not g.debug_mode else ""
 
 
 def playlists_display():
@@ -782,8 +782,7 @@ def xenc(stuff):
 def screen_update():
     """ Display content, show message, blank screen."""
 
-    if not g.noblank:
-        print("\n" * 200)
+    print(g.blank_text)
 
     if g.content:
         xprint(g.content)
@@ -792,7 +791,6 @@ def screen_update():
         xprint(g.message)
 
     g.message = g.content = ""
-    g.noblank = False
 
 
 def playback_progress(idx, allsongs, repeat=False):
@@ -1262,7 +1260,7 @@ def search_album(term, page=1, splash=True, bitrate=g.album_tracks_bitrate):
         return
 
     songs = []
-    print("\n" * 200)
+    print(g.blank_text)
     itt = _match_tracks(artist, title, bitrate, mb_tracks)
 
     while True:
@@ -1767,7 +1765,7 @@ def play_range(songlist, shuffle=False, repeat=False):
 def show_help(helpname=None):
     """ Print help message. """
 
-    print("\n" * 200)
+    print(g.blank_text)
     print(HELP)
     print("Press Enter to continue", end="")
     try:
@@ -1784,7 +1782,7 @@ def quits(showlogo=True):
         readline.write_history_file(g.READLINE_FILE)
 
     g.memo.save()
-    msg = ("\n" * 200) + logo(c.r, version=__version__) if showlogo else ""
+    msg = (g.blank_text) + logo(c.r, version=__version__) if showlogo else ""
     vermsg = ""
     print(msg + F("exitmsg", 2))
 
@@ -1987,6 +1985,25 @@ def plist(parturl):
     g.content = generate_songlist_display()
 
 
+def get_version_info():
+    """ Return version and platform info. """
+
+    import platform
+    out = ("\nmps version    : %s " % __version__)
+    out += ("\nPython version : %s" % sys.version)
+    out += ("\nProcessor      : %s" % platform.processor())
+    out += ("\nMachine type   : %s" % platform.machine())
+    out += ("\nArchitecture   : %s, %s" % platform.architecture())
+    out += ("\nPlatform       : %s" % platform.platform())
+    envs = "TERM SHELL LANG LANGUAGE".split()
+
+    for env in envs:
+        value = os.environ.get(env)
+        out += "\nenv:%-11s: %s" % (env, value) if value else ""
+
+    return out
+
+
 def main():
     """ Main control loop. """
 
@@ -2073,7 +2090,30 @@ def main():
         screen_update()
 
 
+if "--debug" in sys.argv:
+    print(get_version_info())
+    sys.argv = [_x for _x in sys.argv if not "--debug" in _x]
+    g.debug_mode = True
+    g.blank_text = "--\n"
+    logfile = os.path.join(tempfile.gettempdir(), "mps.log")
+    logging.basicConfig(level=logging.DEBUG, filename=logfile)
+    logging.getLogger("pafy").setLevel(logging.DEBUG)
+
+if "--version" in sys.argv:
+    print(get_version_info())
+    print("")
+    sys.exit()
+
+elif "--logging" in sys.argv:
+    sys.argv = [_x for _x in sys.argv if not "--logging" in _x]
+    logfile = os.path.join(tempfile.gettempdir(), "mps.log")
+    logging.basicConfig(level=logging.DEBUG, filename=logfile)
+
+dbg = logging.debug  # pylint: disable=W0404
+
 if __name__ == "__main__":
+
     if has_colorama:
         init_colorama()
+
     main()
