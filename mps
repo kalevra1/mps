@@ -24,7 +24,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from __future__ import print_function
 
-__version__ = "0.20.14"
+__version__ = "0.20.15"
 __author__ = "nagev"
 __license__ = "GPLv3"
 
@@ -1458,6 +1458,7 @@ def _make_fname(song):
 
     filename = song['singer'][:49] + " - " + song['song'][:49] + ".mp3"
     filename = os.path.join(Config.DDIR, mswinfn(filename.replace("/", "-")))
+    filename = non_utf8_encode(filename)
     return filename
 
 
