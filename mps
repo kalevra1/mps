@@ -1475,6 +1475,7 @@ def _download(song, filename):
     try:
         outfh = open(filename, 'wb')
     except IOError:
+        filename = filename.replace("?," "_")
         outfh = open(filename.encode())
 
     while True:
