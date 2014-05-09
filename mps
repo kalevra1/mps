@@ -1472,7 +1472,10 @@ def _download(song, filename):
     dbg("fetched url " + song['track_url'])
     total = int(resp.info()['Content-Length'].strip())
     chunksize, bytesdone, t0 = 16384, 0, time.time()
-    outfh = open(filename, 'wb')
+    try:
+        outfh = open(filename, 'wb')
+    except IOError:
+        outfh = open(filename.encode())
 
     while True:
         chunk = resp.read(chunksize)
