@@ -1475,9 +1475,9 @@ def _download(song, filename):
     try:
         outfh = open(filename, 'wb')
     except IOError:
-        filename = filename.replace("?", "_")
+        filename = filename.replace("?", "_").encode()
         xprint("Trying %s%s%s ..\n" % (c.g, filename, c.w))
-        outfh = open(filename.encode())
+        outfh = open(filename, "wb")
 
     while True:
         chunk = resp.read(chunksize)
