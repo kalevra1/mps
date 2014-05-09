@@ -1463,22 +1463,24 @@ def _make_fname(song):
 def _download(song, filename):
     """ Download file, show status, return filename. """
 
-    xprint("Downloading %s%s%s ..\n" % (c.g, filename, c.w))
-    status_string = ('  {0}{1:,}{2} Bytes [{0}{3:.2%}{2}] received. Rate: '
-                     '[{0}{4:4.0f} kbps{2}].  ETA: [{0}{5:.0f} secs{2}]')
     song['track_url'] = get_stream(song)
-    dbg("[4] fetching url " + song['track_url'])
+    dbg("fetching url " + song['track_url'])
     resp = urlopen(song['track_url'])
     dbg("fetched url " + song['track_url'])
-    total = int(resp.info()['Content-Length'].strip())
-    chunksize, bytesdone, t0 = 16384, 0, time.time()
+
     try:
         outfh = open(filename, 'wb')
+
     except IOError:
+        # fat 32 doesn't like question marks
         filename = filename.replace("?", "_").encode()
-        xprint("Trying %s%s%s ..\n" % (c.g, filename, c.w))
         outfh = open(filename, "wb")
 
+    xprint("Downloading %s%s%s ..\n" % (c.g, filename, c.w))
+    total = int(resp.info()['Content-Length'].strip())
+    chunksize, bytesdone, t0 = 16384, 0, time.time()
+    status_string = ('  {0}{1:,}{2} Bytes [{0}{3:.2%}{2}] received. Rate: '
+                     '[{0}{4:4.0f} kbps{2}].  ETA: [{0}{5:.0f} secs{2}]')
     while True:
         chunk = resp.read(chunksize)
         outfh.write(chunk)
