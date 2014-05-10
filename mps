@@ -62,20 +62,19 @@ if sys.version_info[:2] >= (3, 0):
     from urllib.request import build_opener
     from urllib.error import HTTPError, URLError
     from urllib.parse import urlencode
-    py2utf8_encode = lambda x: x
-    py2utf8_decode = lambda x: x
-    compat_input = input
+    uni, byt, xinput = str, bytes, input
+    xinput = input
 
 else:
     from urllib2 import build_opener, HTTPError, URLError
     from urllib import urlencode
     import cPickle as pickle
-    py2utf8_encode = lambda x: x.encode("utf8") if type(x) == unicode else x
-    py2utf8_decode = lambda x: x.decode("utf8") if type(x) == str else x
-    compat_input = raw_input
+    uni, byt, xinput = unicode, str, raw_input
 
+utf8_encode = lambda x: x.encode("utf8") if type(x) == uni else x
+utf8_decode = lambda x: x.decode("utf8") if type(x) == byt else x
 mswin = os.name == "nt"
-non_utf8 = mswin or not "UTF-8" in os.environ.get("LANG", "")
+not_utf8_environment = mswin or not "UTF-8" in os.environ.get("LANG", "")
 member_var = lambda x: not(x.startswith("__") or callable(x))
 zcomp = lambda v: zlib.compress(pickle.dumps(v, protocol=2), 9)
 zdecomp = lambda v: pickle.loads(zlib.decompress(v))
@@ -87,25 +86,21 @@ def dbg(*a, **b):
     pass
 
 
-def non_utf8_encode(txt):
-    """ Encoding for Windows. """
+def utf8_replace(txt):
+    """ Replace unsupported characters in unicode string, returns unicode. """
 
-    if non_utf8:
-        sse = sys.stdout.encoding
-        txt = txt.encode(sse, "replace").decode("utf8", "ignore")
-
+    sse = sys.stdout.encoding
+    txt = txt.encode(sse, "replace").decode("utf8", "ignore")
     return txt
 
 
-def mswinfn(filename):
+def remove_special_chars(text):
     """ Fix filename for Windows. """
 
-    if mswin:
-        filename = non_utf8_encode(filename)
-        allowed = re.compile(r'[^\\/?*$\'"%&:<>|]')
-        filename = "".join(x if allowed.match(x) else "_" for x in filename)
-
-    return filename
+    text = utf8_replace(text) # replace unsupported characters
+    allowed = re.compile(r'[^\\/?*$\'"%&:<>|]')
+    text = "".join(x if allowed.match(x) else "_" for x in text)
+    return text
 
 
 def get_default_ddir():
@@ -137,10 +132,11 @@ def get_default_ddir():
 
     elif os.path.exists(DOWNLOAD_HOME):
         ddir = DOWNLOAD_HOME
+
     else:
         ddir = user
 
-    ddir = py2utf8_decode(ddir)
+    ddir = utf8_decode(ddir)
     return join(ddir, "mps")
 
 
@@ -212,7 +208,7 @@ class Memo(object):
                     dbg("cache opened, %s items", len(self.data))
 
             except (EOFError, IOError) as e:
-                dbg(str(e))
+                dbg(uni(e))
 
         else:
             dbg("No cache found!")
@@ -665,13 +661,13 @@ def playlists_display():
     maxname = max(len(a) for a in g.userpl)
     out = "      {0}Saved Playlists{1}\n".format(c.ul, c.w)
     start = "      "
-    fmt = "%s%s%-3s %-" + str(maxname + 3) + "s%s %s%-7s%s %-5s%s"
+    fmt = "%s%s%-3s %-" + uni(maxname + 3) + "s%s %s%-7s%s %-5s%s"
     head = (start, c.b, "ID", "Name", c.b, c.b, "Count", c.b, "Duration", c.w)
     out += "\n" + fmt % head + "\n\n"
 
     for v, z in enumerate(sorted(g.userpl)):
         n, p = z, g.userpl[z]
-        l = fmt % (start, c.g, v + 1, n, c.w, c.y, str(p.size), c.y,
+        l = fmt % (start, c.g, v + 1, n, c.w, c.y, uni(p.size), c.y,
                    p.duration, c.w) + "\n"
         out += l
 
@@ -686,7 +682,7 @@ def mplayer_help(short=True):
     seek = u"[{0}\u2190{1}] seek [{0}\u2192{1}]"
     pause = u"[{0}\u2193{1}] SEEK [{0}\u2191{1}]       [{0}space{1}] pause"
 
-    if non_utf8:
+    if not_utf8_environment:
         seek = "[{0}<-{1}] seek [{0}->{1}]"
         pause = "[{0}DN{1}] SEEK [{0}UP{1}]       [{0}space{1}] pause"
 
@@ -720,11 +716,11 @@ def get_average_bitrate(song):
 
         # fix some songs reporting large bitrates
         if vbrabr > 320:
-            dbg("---- %s => bitrate: %s", song["song"], str(vbrabr))
+            dbg("---- %s => bitrate: %s", song["song"], uni(vbrabr))
             vbrabr = 320
 
-        song["listrate"] = str(vbrabr) + " v"  # for display in list
-        song["rate"] = str(vbrabr) + " Kb/s VBR"  # for playback display
+        song["listrate"] = uni(vbrabr) + " v"  # for display in list
+        song["rate"] = uni(vbrabr) + " Kb/s VBR"  # for playback display
 
     else:
         song["listrate"] = song["rate"][:3]  # not vbr list display
@@ -773,9 +769,8 @@ def xprint(stuff):
 
 
 def xenc(stuff):
-    """ Encode for non utf8 environments and python 2. """
-    stuff = non_utf8_encode(stuff)
-    stuff = py2utf8_encode(stuff)
+    """ Encode for non utf8 environments. """
+    stuff = utf8_replace(stuff) if not_utf8_environment else stuff
     return stuff
 
 
@@ -883,14 +878,14 @@ def generate_songlist_display(song=False):
         art, tit = uea_trunc(20, artist), uea_trunc(21, title)
         art, tit = uea_rpad(21, art), uea_rpad(22, tit)
         fmtrow = "%s%-6s %-7s %s %s %-8s %-7s%s\n"
-        size = str(size)[:3]
+        size = uni(size)[:3]
         size = size[0:2] + " " if size[2] == "." else size
 
         if not song or song != songs[n]:
-            out += (fmtrow % (col, str(n + 1), size + " Mb",
+            out += (fmtrow % (col, uni(n + 1), size + " Mb",
                               art, tit, duration[:8], bitrate[:6], c.w))
         else:
-            out += (fmtrow % (c.p, str(n + 1), size + " Mb",
+            out += (fmtrow % (c.p, uni(n + 1), size + " Mb",
                               art, tit, duration[:8], bitrate[:6], c.w))
 
     return out + "\n" * (5 - len(songs)) if not song else out
@@ -935,7 +930,7 @@ def playsong(song, failcount=0):
         song['track_url'] = track_url
 
     except (URLError, HTTPError, socket.timeout) as e:
-        g.message = F('cant get track') % str(e)
+        g.message = F('cant get track') % uni(e)
         return
 
     except ValueError:
@@ -1194,7 +1189,7 @@ def search_album(term, page=1, splash=True, bitrate=g.album_tracks_bitrate):
     #pylint: disable=R0914,R0912
     if not term:
         show_message("Enter album name:", c.g, update=True)
-        term = compat_input("> ")
+        term = xinput("> ")
 
         if not term or len(term) < 2:
             g.message = c.r + "Not enough input!" + c.w
@@ -1215,7 +1210,7 @@ def search_album(term, page=1, splash=True, bitrate=g.album_tracks_bitrate):
     g.message, g.content = out, logo(c.b)
     screen_update()
     prompt = xenc("Artist? [%s] > " % album['artist'])
-    artistentry = compat_input(prompt).strip()
+    artistentry = xinput(prompt).strip()
 
     if artistentry:
 
@@ -1247,7 +1242,7 @@ def search_album(term, page=1, splash=True, bitrate=g.album_tracks_bitrate):
     #g.content = logo(c.b) + "\n\n"
     screen_update()
     bitrate = g.album_tracks_bitrate
-    brentry = compat_input("Bitrate? [%s] > " % bitrate)
+    brentry = xinput("Bitrate? [%s] > " % bitrate)
 
     if brentry.isdigit():
         bitrate = int(brentry)
@@ -1277,7 +1272,7 @@ def search_album(term, page=1, splash=True, bitrate=g.album_tracks_bitrate):
 
     if songs:
         print("\n%s / %s songs matched" % (len(songs), len(mb_tracks)))
-        compat_input("Press Enter to continue")
+        xinput("Press Enter to continue")
         g.model.songs = songs
         g.message = "Contents of album %s%s - %s%s %s(%d/%d)%s:" % (
             c.y, artist, title, c.w, c.b, len(songs), len(mb_tracks), c.w)
@@ -1309,8 +1304,8 @@ def _match_tracks(artist, title, bitrate, mb_tracks):
         length = track['length']
         xprint("Search :  %s%s - %s%s - %s" % (c.y, artist, ttitle, c.w,
                                                dtime(length)))
-        q = py2utf8_encode(artist) + " " + py2utf8_encode(ttitle)
-        q = py2utf8_encode(ttitle) if artist == "Various Artists" else q
+        q = utf8_encode("%s %s" % (artist, ttitle))
+        q = utf8_encode(ttitle) if artist == "Various Artists" else q
         query = {"target": "tracks", "page": 1, "q": q}
         wdata, fromcache = _do_query(url, query, err='album track error',
                                      report=True)
@@ -1455,8 +1450,10 @@ def _make_fname(song):
         os.makedirs(Config.DDIR)
 
     filename = song['singer'][:49] + " - " + song['song'][:49] + ".mp3"
-    filename = os.path.join(Config.DDIR, mswinfn(filename.replace("/", "-")))
-    filename = non_utf8_encode(filename)
+    filename = filename.replace("/", "-")
+    filename = remove_special_chars(filename) if mswin else filename
+    filename = os.path.join(Config.DDIR, filename)
+    filename = xenc(filename)
     return filename
 
 
@@ -1473,8 +1470,9 @@ def _download(song, filename):
 
     except IOError:
         # fat 32 doesn't like question marks
-        filename = filename.replace("?", "_").encode()
-        outfh = open(filename, "wb")
+        filename = filename.replace("?", "_")
+        outfh = open(filename.encode(sys.stdout.encoding,
+                                     errors="replace"), "wb")
 
     xprint("Downloading %s%s%s ..\n" % (c.g, filename, c.w))
     total = int(resp.info()['Content-Length'].strip())
@@ -1521,7 +1519,7 @@ def _bi_range(start, end):
 def _parse_multi(choice, end=None):
     """ Handle ranges like 5-9, 9-5, 5- and -5. Return list of ints. """
 
-    end = end or str(g.model.size)
+    end = end or uni(g.model.size)
     pattern = r'(?<![-\d])(\d+-\d+|-\d+|\d+-|\d+)(?![-\d])'
     items = re.findall(pattern, choice)
     alltracks = []
@@ -1532,7 +1530,7 @@ def _parse_multi(choice, end=None):
             x = "1" + x
 
         elif x.endswith("-"):
-            x = x + str(end)
+            x = x + uni(end)
 
         if "-" in x:
             nrange = x.split("-")
@@ -1599,7 +1597,7 @@ def save_last(args=None):
 
         while g.userpl.get(saveas):
             post += 1
-            saveas = g.model.songs[0]['singer'][:15].strip() + "-" + str(post)
+            saveas = g.model.songs[0]['singer'][:15].strip() + "-" + uni(post)
 
         open_save_view("save", saveas)
 
@@ -1668,7 +1666,7 @@ def songlist_rm_add(action, songrange):
 
     elif action == "rm":
         selection = list(reversed(sorted(list(set(selection)))))
-        removed = str(tuple(reversed(selection))).replace(",", "")
+        removed = uni(tuple(reversed(selection))).replace(",", "")
 
         for x in selection:
             g.model.songs.pop(x - 1)
@@ -1689,8 +1687,8 @@ def play(pre, choice, post=""):
         shuffle = "shuffle" in pre + post
         repeat = "repeat" in pre + post
         selection = _parse_multi(choice)
-        debug = ("shuffle=" + str(shuffle) + " : repeat=" +
-                 str(repeat) + " : " + str(selection))
+        debug = ("shuffle=" + uni(shuffle) + " : repeat=" +
+                 uni(repeat) + " : " + uni(selection))
         dbg(debug)
         songlist = [g.model.songs[x - 1] for x in selection]
         play_range(songlist, shuffle, repeat)
@@ -1700,7 +1698,7 @@ def play_all(pre, choice, post=""):
     """ Play all tracks in model (last displayed). shuffle/repeat if req'd."""
 
     options = pre + choice + post
-    play(options, "1-" + str(len(g.model.songs)))
+    play(options, "1-" + uni(len(g.model.songs)))
 
 
 def ls():
@@ -1776,7 +1774,7 @@ def show_help(helpname=None):
     print(HELP)
     print("Press Enter to continue", end="")
     try:
-        compat_input("")
+        xinput("")
     except (KeyboardInterrupt, EOFError):
         prompt_for_exit()
     g.content = generate_songlist_display()
@@ -1843,7 +1841,7 @@ def prompt_for_exit():
     screen_update()
 
     try:
-        userinput = compat_input(c.r + " > " + c.w)
+        userinput = xinput(c.r + " > " + c.w)
 
     except (KeyboardInterrupt, EOFError):
         quits(showlogo=False)
@@ -1947,7 +1945,7 @@ def add_rm_all(action):
 
     elif action == "add":
         size = g.model.size
-        songlist_rm_add("add", "-" + str(size))
+        songlist_rm_add("add", "-" + uni(size))
 
 
 def nextprev(np):
@@ -2067,7 +2065,7 @@ def main():
     while True:
         try:
             # get user input
-            userinput = inp or compat_input(prompt)
+            userinput = inp or xinput(prompt)
             userinput = userinput.strip()
             print(c.w)
 
