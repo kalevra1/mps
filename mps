@@ -762,14 +762,14 @@ def get_tracks_from_page(page):
     return songs
 
 
-def xprint(stuff):
+def xprint(stuff, end=None):
     """ Compatible print. """
 
-    print(xenc(stuff))
+    print(xenc(stuff), end=end)
 
 
 def xenc(stuff):
-    """ Encode for non utf8 environments. """
+    """ Replace unsupported characters. """
     stuff = utf8_replace(stuff) if not_utf8_environment else stuff
     return stuff
 
@@ -1209,8 +1209,9 @@ def search_album(term, page=1, splash=True, bitrate=g.album_tracks_bitrate):
 
     g.message, g.content = out, logo(c.b)
     screen_update()
-    prompt = xenc("Artist? [%s] > " % album['artist'])
-    artistentry = xinput(prompt).strip()
+    prompt = "Artist? [%s] > " % album['artist']
+    xprint(prompt, end="")
+    artistentry = xinput().strip()
 
     if artistentry:
 
@@ -1309,7 +1310,7 @@ def _match_tracks(artist, title, bitrate, mb_tracks):
         query = {"target": "tracks", "page": 1, "q": q}
         wdata, fromcache = _do_query(url, query, err='album track error',
                                      report=True)
-        results = get_tracks_from_page(wdata.decode("utf8")) if wdata else None
+        results = get_tracks_from_page(wdata) if wdata else None
 
         if not fromcache:
             time.sleep(1.5)
@@ -1345,7 +1346,7 @@ def _get_mb_album(albumname, **kwa):
         return None
 
     ns = {'mb': 'http://musicbrainz.org/ns/mmd-2.0#'}
-    root = ET.fromstring(wdata)
+    root = ET.fromstring(utf8_encode(wdata))
     rlist = root.find("mb:release-list", namespaces=ns)
 
     if int(rlist.get('count')) == 0:
@@ -1370,7 +1371,7 @@ def _get_mb_tracks(albumid):
     if not wdata:
         return None
 
-    root = ET.fromstring(wdata)
+    root = ET.fromstring(utf8_encode(wdata))
     tlist = root.find("./mb:release/mb:medium-list/mb:medium/mb:track-list",
                       namespaces=ns)
     mb_songs = tlist.findall("mb:track", namespaces=ns)
@@ -1430,7 +1431,7 @@ def _do_query(url, query, err='query failed', cache=True, report=False):
         return g.memo.get(url) if not report else (g.memo.get(url), True)
 
     try:
-        wdata = urlopen(url).read()
+        wdata = urlopen(url).read().decode("utf8")
 
     except (URLError, HTTPError) as e:
         g.message = "%s: %s (%s)" % (err, e, url)
