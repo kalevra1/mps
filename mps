@@ -1375,13 +1375,20 @@ def _get_mb_tracks(albumid):
     tlist = root.find("./mb:release/mb:medium-list/mb:medium/mb:track-list",
                       namespaces=ns)
     mb_songs = tlist.findall("mb:track", namespaces=ns)
-
     tracks = []
+    path = "./mb:recording/mb:"
 
     for track in mb_songs:
-        title = track.find("./mb:recording/mb:title", namespaces=ns).text
-        rawlength = track.find("./mb:recording/mb:length", namespaces=ns).text
-        length = int(round(float(rawlength) / 1000))
+
+        try:
+            title, length, rawlength = "unknown", 0, 0
+            title = track.find(path + "title", namespaces=ns).text
+            rawlength = track.find(path + "length", namespaces=ns).text
+            length = int(round(float(rawlength) / 1000))
+
+        except (ValueError, AttributeError):
+            xprint("not found")
+
         tracks.append(dict(title=title, length=length, rawlength=rawlength))
 
     return tracks
