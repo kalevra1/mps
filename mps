@@ -1438,10 +1438,12 @@ def _do_query(url, query, err='query failed', cache=True, report=False):
         return g.memo.get(url) if not report else (g.memo.get(url), True)
 
     try:
+        dbg("opening url %s", url)
         wdata = urlopen(url).read().decode("utf8")
 
     except (URLError, HTTPError) as e:
         g.message = "%s: %s (%s)" % (err, e, url)
+        dbg(g.message)
         g.content = logo(c.r)
         return None if not report else (None, False)
 
@@ -2103,7 +2105,7 @@ def main():
         screen_update()
 
 
-if "--debug" in sys.argv:
+if "--debug" in sys.argv or os.environ.get("mpsdebug") == '1':
     print(get_version_info())
     sys.argv = [_x for _x in sys.argv if not "--debug" in _x]
     g.debug_mode = True
@@ -2117,7 +2119,7 @@ if "--version" in sys.argv:
     print("")
     sys.exit()
 
-elif "--logging" in sys.argv:
+elif "--logging" in sys.argv or os.environ.get("mpslog") == '1':
     sys.argv = [_x for _x in sys.argv if not "--logging" in _x]
     logfile = os.path.join(tempfile.gettempdir(), "mps.log")
     logging.basicConfig(level=logging.DEBUG, filename=logfile)

@@ -1,6 +1,8 @@
 Version 0.20.15
 Development version - not yet released
 
+ - Fixed encoding issue in album search feature
+
 -------------------------------------------------------------------------------
 
 Version 0.20.08
