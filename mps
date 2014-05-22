@@ -303,6 +303,7 @@ class g(object):
     """ Class for holding globals that are needed throught the module. """
 
     debug_mode = False
+    last_volume = None
     album_tracks_bitrate = 320
     model = Playlist(name="model")
     last_search_query = ""
@@ -341,7 +342,12 @@ def saveconfig():
     """ Save current config to file. """
 
     config = {setting: getattr(Config, setting) for setting in g.config}
-    pickle.dump(config, open(g.CFFILE, "wb"), protocol=2)
+
+    if g.last_volume:
+        config["last_volume"] = g.last_volume
+
+    with open(g.CFFILE, "wb") as fh:
+        pickle.dump(config, fh, protocol=2)
 
 
 def clearcache():
@@ -358,7 +364,10 @@ def loadconfig(pfile):
 
     saved_config = pickle.load(open(pfile, "rb"))
     for kk, vv in saved_config.items():
-        setattr(Config, kk, vv)
+        if kk == "last_volume":
+            g.last_volume = vv
+        else:
+            setattr(Config, kk, vv)
 
 # Account for old versions
 if os.path.exists(g.CFFILE):
@@ -953,12 +962,26 @@ def playsong(song, failcount=0):
         g.message = F('track unresolved')
         return
 
+    pargs = Config.PLAYERARGS.split()
+
+    if "mplayer" in Config.PLAYER:
+
+        if "-really-quiet" in pargs:
+            pargs.remove("-really-quiet")
+
+        if g.last_volume and "-volume" not in pargs:
+            pargs += ["-volume", g.last_volume]
+
+    cmd = [Config.PLAYER] + pargs + [song['track_url']]
+
+    # fix for github issue 59 of mps-youtube
+    if "mplayer" in Config.PLAYER and mswin and sys.version_info[:2] < (3, 0):
+            cmd = [x.encode("utf8", errors="replace") for x in cmd]
+
+    stdout = stderr = None
+    dbg(cmd)
+
     try:
-        cmd = [Config.PLAYER] + Config.PLAYERARGS.split() + [song['track_url']]
-        dbg("starting mplayer with " + song['track_url'])
-
-        stdout = stderr = None
-
         with open(os.devnull, "w") as fnull:
 
             if "mpv" in Config.PLAYER:
@@ -968,16 +991,7 @@ def playsong(song, failcount=0):
                 stdout = stderr = fnull
 
             if "mplayer" in Config.PLAYER:
-
-                if "-really-quiet" in cmd:
-                    cmd.remove("-really-quiet")
-
-                # fix for github issue 59 of mps-youtube
-                if mswin and sys.version_info[:2] < (3, 0):
-                    cmd = [x.encode("utf8", errors="replace") for x in cmd]
-
-                p = subprocess.Popen(cmd, shell=False,
-                                     stdout=subprocess.PIPE,
+                p = subprocess.Popen(cmd, shell=False, stdout=subprocess.PIPE,
                                      stderr=subprocess.STDOUT, bufsize=1)
                 mplayer_status(p, "", get_length(song))
 
@@ -1029,6 +1043,7 @@ def mplayer_status(popen_object, prefix="", songlength=0):
             mv = re_mplayer_volume.search(buff)
             if mv:
                 volume_level = int(mv.group("volume"))
+                g.last_volume = str(volume_level)
 
             m = re_mplayer.match(buff)
             if m:
@@ -1797,6 +1812,7 @@ def quits(showlogo=True):
         readline.write_history_file(g.READLINE_FILE)
 
     g.memo.save()
+    saveconfig()
     msg = (g.blank_text) + logo(c.r, version=__version__) if showlogo else ""
     vermsg = ""
     print(msg + F("exitmsg", 2))
