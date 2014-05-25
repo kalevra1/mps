@@ -840,6 +840,7 @@ def playback_progress(idx, allsongs, repeat=False):
 def real_len(u):
     """ Try to determine width of strings displayed with monospace font. """
 
+    u = utf8_decode(u)
     ueaw = unicodedata.east_asian_width
     widths = dict(W=2, F=2, A=1, N=0.75, H=0.5)
     return int(round(sum(widths.get(ueaw(char), 1) for char in u)))
