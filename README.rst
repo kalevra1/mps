@@ -5,6 +5,10 @@ mps
     :target: https://pypi.python.org/pypi/mps
 .. image:: https://pypip.in/d/mps/badge.png
     :target: https://pypi.python.org/pypi/mps
+.. image:: https://pypip.in/wheel/mps/badge.png
+    :target: http://pythonwheels.com/
+    :alt: Wheel Status
+
 
 Features
 --------
@@ -42,19 +46,21 @@ Installation
 
 Using `pip <http://www.pip-installer.org>`_::
     
-    sudo pip install mps
+    [sudo] pip install mps
 
 Using `git <http://www.git-scm.com>`_::
 
     git clone https://github.com/np1/mps.git
+    cd mps
+    python setup.py install
    
-Manually::
+Manually:
 
-    Download zip file or tar.gz and extract:
+  Download `zip <https://github.com/np1/mps/archive/master.zip>`_ or `tar.gz <https://github.com/np1/mps/archive/master.tar.gz>`_ and extract
 
-    https://github.com/np1/mps/archive/master.zip
+  From within the mps directory::
 
-    https://github.com/np1/mps/archive/master.tar.gz
+    python setup.py install
 
 
 Mac OS X installation notes
@@ -75,7 +81,8 @@ Install the python `colorama <https://pypi.python.org/pypi/colorama>`_ module to
 Download mplayer for your CPU type from the "Build Selection table" `here
 <http://oss.netfarm.it/mplayer-win32.php>`_. 
 
-Extract the mplayer.exe file, saving it to your mps directory
+Extract the mplayer.exe file, saving it to your mps directory or a PATH
+directory
 
 
 Upgrading
@@ -99,10 +106,6 @@ Usage
 mps is run on the command line using the command::
     
     mps
-    
-or on Linux/MacOS if you are in the same directory::
-
-    ./mps
     
 Enter ``h`` from within the program for help.
 
