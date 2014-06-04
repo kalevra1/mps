@@ -24,7 +24,7 @@ setup(
     url="http://github.com/np1/mps/",
     download_url="https://github.com/np1/mps/tarball/master",
     packages=['mps'],
-    entry_points=dict(console_scripts=['mps = mps:mps.main']),
+    entry_points=dict(console_scripts=['mps = mps:main.main']),
     package_data={"": ["LICENSE", "README.rst", "CHANGELOG"]},
     classifiers=[
         "Topic :: Utilities",
