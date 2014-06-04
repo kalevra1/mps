@@ -2,6 +2,7 @@ Version 0.20.15
 Development version - not yet released
 
  - Fixed encoding issue in album search feature
+ - Fix downloading issue with FAT32 filesystem (#61)
 
 -------------------------------------------------------------------------------
 
