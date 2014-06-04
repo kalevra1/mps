@@ -1,7 +1,5 @@
-*.py[cod]
-
 otherstuff/
-*.py
+
 MANIFEST
 
 # C extensions
