@@ -12,7 +12,6 @@ try:
 except ImportError:
     from distutils.core import setup
 
-readme = open("README.rst").read()
 
 setup(
     name="mps",
@@ -20,26 +19,36 @@ setup(
     description="Search, Stream and Download MP3",
     keywords=["MP3", "music", "audio", "search", "stream", "download"],
     author="nagev",
-    long_description=readme,
+    long_description=open("README.rst").read(),
     author_email="np1nagev@gmail.com",
     url="http://github.com/np1/mps/",
     download_url="https://github.com/np1/mps/tarball/master",
-    scripts=['mps'],
-    package_data={"": ["LICENSE", "README.rst"]},
+    packages=['mps'],
+    entry_points=dict(console_scripts=['mps = mps:mps.main']),
+    package_data={"": ["LICENSE", "README.rst", "CHANGELOG"]},
     classifiers=[
-        "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
-        "Operating System :: POSIX :: Linux",
+        "Topic :: Utilities",
+        "Topic :: Internet :: WWW/HTTP",
+        "Topic :: Multimedia :: Sound/Audio :: Players",
         "Environment :: Console",
+        "Environment :: Win32 (MS Windows)"
+        "Environment :: MacOS X"
+        "Operating System :: POSIX :: Linux",
+        "Operating System :: MacOS",
+        "Operating System :: MacOS :: MacOS 9",
+        "Operating System :: MacOS :: MacOS X",
+        "Operating System :: Microsoft",
+        "Operating System :: Microsoft :: Windows :: Windows 7",
+        "Operating System :: Microsoft :: Windows :: Windows XP",
+        "Operating System :: Microsoft :: Windows :: Windows Vista",
+        "Intended Audience :: End Users/Desktop",
         "Programming Language :: Python",
-        "Programming Language :: Python :: 2.7",
+        "Programming Language :: Python :: 2",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.0",
-        "Programming Language :: Python :: 3.1",
-        "Programming Language :: Python :: 3.2",
+        "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3.3",
         "Programming Language :: Python :: 3.4",
         "Development Status :: 5 - Production/Stable",
-        "Topic :: Utilities",
-        "Topic :: Multimedia :: Sound/Audio :: Players",
-        "Topic :: Internet :: WWW/HTTP"],
+        "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    ],
 )
