@@ -24,7 +24,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from __future__ import print_function
 
-__version__ = "0.20.15"
+__version__ = "0.20.16"
 __author__ = "nagev"
 __license__ = "GPLv3"
 
@@ -32,6 +32,7 @@ import xml.etree.ElementTree as ET
 import unicodedata
 import subprocess
 import tempfile
+import __main__
 import logging
 import hashlib
 import difflib
@@ -44,6 +45,7 @@ import json
 import sys
 import re
 import os
+
 
 try:
     # pylint: disable=F0401
@@ -298,6 +300,7 @@ class Playlist(object):
         return duration
 
 
+
 class g(object):
 
     """ Class for holding globals that are needed throught the module. """
@@ -357,6 +360,8 @@ def clearcache():
     g.content = generate_songlist_display()
     g.message = c.r + "Cache cleared!" + c.w
 
+
+__main__.Playlist = Playlist
 
 # override config if config file exists
 def loadconfig(pfile):
