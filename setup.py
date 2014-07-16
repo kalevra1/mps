@@ -15,7 +15,7 @@ except ImportError:
 
 setup(
     name="mps",
-    version="0.20.15",
+    version="0.20.16",
     description="Search, Stream and Download MP3",
     keywords=["MP3", "music", "audio", "search", "stream", "download"],
     author="nagev",
@@ -23,8 +23,8 @@ setup(
     author_email="np1nagev@gmail.com",
     url="http://github.com/np1/mps/",
     download_url="https://github.com/np1/mps/tarball/master",
-    packages=['mps'],
-    entry_points=dict(console_scripts=['mps = mps:main.main']),
+    packages=['mps_pkg'],
+    entry_points=dict(console_scripts=['mps = mps_pkg:main.main']),
     package_data={"": ["LICENSE", "README.rst", "CHANGELOG"]},
     classifiers=[
         "Topic :: Utilities",
