@@ -31,8 +31,8 @@ setup(
         "Topic :: Internet :: WWW/HTTP",
         "Topic :: Multimedia :: Sound/Audio :: Players",
         "Environment :: Console",
-        "Environment :: Win32 (MS Windows)"
-        "Environment :: MacOS X"
+        "Environment :: Win32 (MS Windows)",
+        "Environment :: MacOS X",
         "Operating System :: POSIX :: Linux",
         "Operating System :: MacOS",
         "Operating System :: MacOS :: MacOS 9",
@@ -49,6 +49,6 @@ setup(
         "Programming Language :: Python :: 3.3",
         "Programming Language :: Python :: 3.4",
         "Development Status :: 5 - Production/Stable",
-        "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+        "License :: OSI Approved :: GNU General Public License v3 (GPLv3)"
     ],
 )
