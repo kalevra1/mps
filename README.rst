@@ -27,17 +27,23 @@ Screenshots
 Search
 ~~~~~~
 
-.. image:: http://i.imgur.com/SnqxqZz.png
+.. image:: http://np1.github.io/mps-images/search.png
 
 Playback
 ~~~~~~~~
 
-.. image:: http://i.imgur.com/3sYlktI.png
+.. image:: http://np1.github.io/mps-images/playback.png
+
+Album Tracks Search
+~~~~~~~~~~~~~~~~~~~
+
+.. image:: http://np1.github.io/mps-images/album-search.png
+.. image:: http://np1.github.io/mps-images/album-match.png
 
 Playlists
 ~~~~~~~~~
 
-.. image:: http://i.imgur.com/RDEXLPW.png
+.. image:: http://np1.github.io/mps-images/playlists.png
 
 
 
