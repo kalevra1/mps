@@ -24,7 +24,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from __future__ import print_function
 
-__version__ = "0.20.16"
+__version__ = "0.20.17"
 __author__ = "nagev"
 __license__ = "GPLv3"
 
@@ -1500,8 +1500,14 @@ def _download(song, filename):
         outfh = open(filename, 'wb')
 
     except IOError:
-        # fat 32 doesn't like question marks
-        filename = filename.replace("?", "_")
+        # try replacing troublesome characters
+        fdir, fname = os.path.split(filename)
+        new_fname = ""
+
+        for char in fname:
+            new_fname += "_" if char in '\/:*?"<>|' else char
+
+        filename = os.path.join(fdir, new_fname)
         outfh = open(filename.encode(sys.stdout.encoding,
                                      errors="replace"), "wb")
 
