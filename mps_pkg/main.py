@@ -1204,9 +1204,120 @@ def show_message(message, col=c.r, update=False):
         screen_update()
 
 
+def search_artist(term, page=1, splash=True, bitrate=g.album_tracks_bitrate):
+    """Search for artist albums"""
+    if not term:
+        show_message("Enter arist name:", c.g, update=True)
+        term = xinput("> ")
+
+        if not term or len(term) < 2:
+            g.message = c.r + "Not enough input!" + c.w
+            g.content = generate_songlist_display()
+            return
+    # Get artist list
+    artists = _get_mb_artist(term)
+    if not artists:
+        show_message("No artist found with the name '%s'" % term)
+        return
+    artist_index = 0
+    if len(artists) > 1:
+        fmtrow = "%s%-6s %-12s %-31s%s\n"
+        head = (c.ul, "Item", "Name", "Description", c.w)
+        artist_string = "\n" + (fmtrow % head) + "\n"
+        fmtrow = "%-6s %-12s %-31s"
+        artist_string += "\n".join(fmtrow % (
+                                str(aindex),
+                                uea_trunc(11, artist["name"]),
+                                uea_trunc(30, artist["disamb"])) for aindex, artist in enumerate(artists, 1))
+        artist_index = _query_for_index(artist_string,
+                                        len(artists),
+                                        title=("Which '%s'" % term))
+        if artist_index is None:
+            show_message("Artist selection canceled.")
+            return
+    artist = artists[artist_index]
+
+    # Get album list
+    albums = _get_mb_album_list(artist)
+    if not albums:
+        show_message("No albums found for '%s'!" % term)
+        return
+    index = 0
+    if len(albums) > 1:
+        fmtrow = "%s%-6s %-12s %-31s%s\n"
+        head = (c.ul, "Item", "Year", "Title", c.w)
+        album_string = "\n" + (fmtrow % head) + "\n"
+        fmtrow = "%-6s %-12s %-31s"
+        album_string += "\n".join([fmtrow % (
+                                  str(album_index),
+                                  album['year'],
+                                  uea_trunc(30, album["title"]))
+                        for album_index, album in
+                        enumerate(albums, 1)])
+        index = _query_for_index(album_string,
+                    len(albums), title="Choose album")
+        if index is None:
+            show_message("Artist selection canceled.")
+            return
+
+    # Get releases list
+    album_releases = _get_mb_album_releases(albums[index]['aid'])
+    if not album_releases:
+        show_message("No album releases found. Could not retrieve playlist")
+        return
+
+    index = 0
+    if len(album_releases) > 1:
+        fmtrow = "%s%-6s %-6s %-6s %-12s %-31s%s\n"
+        head = (c.ul, "Item", "Tracks", "Country", "Released", "Title" , c.w)
+        releases_string = "\n" + (fmtrow % head) + "\n"
+        fmtrow = "%-6s %-7s %-6s %-12s %-31s"
+        releases_string += "\n".join([fmtrow % (
+                                    str(release_index),
+                                    str(release['track_count']),
+                                    release["country"],
+                                    release['year'],
+                                    uea_trunc(30, release["title"]))
+                                    for release_index, release in
+                                      enumerate(album_releases, 1)
+                                    ])
+        index = _query_for_index(releases_string,
+                            len(album_releases), title="Choose release")
+        if index is None:
+            show_message("Artist selection canceled.")
+            return
+
+    play_album(album_releases[index])
+
+    # show_message(index)
+
+
+def _query_for_index(album_string, total_count, error=False, title="Pick one"):
+    """Prompt user to pick one item from the list."""
+    show_message("%s:\n%s\n\n" % (title, album_string))
+    screen_update()
+    if error:
+        err_msg = """You must enter a numeric
+                    value lower than %d""" \
+                    % (total_count + 1)
+        show_message("%s:\n%s\n\n%s" % (title, album_string, err_msg))
+        screen_update()
+    prompt = "Which one to play? [1-%d] > " % total_count
+    xprint(prompt, end="")
+    index = xinput().strip()
+    try:
+        if index == 'q':
+            return None
+        index = int(index)
+        if index > total_count:
+            return _query_for_index(album_string, total_count, True, title)
+        return index-1
+    except ValueError:
+        return _query_for_index(album_string, total_count, True, title)
+
+
 def search_album(term, page=1, splash=True, bitrate=g.album_tracks_bitrate):
     """Search for albums. """
-
     #pylint: disable=R0914,R0912
     if not term:
         show_message("Enter album name:", c.g, update=True)
@@ -1245,11 +1356,16 @@ def search_album(term, page=1, splash=True, bitrate=g.album_tracks_bitrate):
         if not album:
             show_message("Album '%s' by '%s' not found!" % (term, artistentry))
             return
+    if album:
+        play_album(album, page)
 
+
+def play_album(album, page=1):
     title, artist = album['title'], album['artist']
     mb_tracks = _get_mb_tracks(album['aid'])
 
     if not mb_tracks:
+        # show_message(str(album))
         show_message("Album '%s' by '%s' has 0 tracks!" % (title, artist))
         return
 
@@ -1347,6 +1463,122 @@ def _match_tracks(artist, title, bitrate, mb_tracks):
                "%s%s]\n" % (c.y, s['singer'], s['song'], c.w, s['duration'],
                             s['listrate'], cc, score, c.w))
         yield s
+
+
+def _get_mb_artist(artist, **kwa):
+    """ Return artist from musicbrainz """
+
+    url = "http://musicbrainz.org/ws/2/artist/"
+    qargs = {"query": artist}
+    g.message = "Artist search for '%s%s%s'" % (c.y, artist, c.w)
+    wdata = _do_query(url, qargs)
+
+    if not wdata:
+        return None
+
+    ns = {
+        'mb': 'http://musicbrainz.org/ns/mmd-2.0#',
+        'sc': 'http://musicbrainz.org/ns/ext#-2.0'
+    }
+    root = ET.fromstring(utf8_encode(wdata))
+    rlist = root.find("mb:artist-list", namespaces=ns)
+
+    if int(rlist.get('count')) == 0:
+        return None
+
+    artists = rlist.findall("mb:artist", namespaces=ns)
+    alist = []
+    for index, xartist in enumerate(artists, 1):
+        if int(xartist.get('{http://musicbrainz.org/ns/ext#-2.0}score')) > 85:
+            name = xartist.find("mb:name", namespaces=ns).text
+            disamb = ""
+            if xartist.find("mb:disambiguation", namespaces=ns) is not None:
+                disamb += xartist.find("mb:disambiguation",
+                    namespaces=ns).text
+            alist.append({
+                "name": name,
+                "artist": name,
+                "disamb": disamb,
+                "aid": xartist.get('id')
+            })
+    return alist
+
+
+def _get_mb_album_list(artist):
+    """Retrieve the album list of an artist. Only non-composition albums"""
+    url = "http://musicbrainz.org/ws/2/release-group/"
+    found_artist = artist  # _get_mb_artist(artist)
+    if not found_artist:
+        return None
+    qargs = {
+        "artist": found_artist["aid"],
+        "type": "album",
+        "limit": "100"
+    }
+    g.message = "Artist album search for '%s%s%s'" % \
+                (c.y, found_artist["artist"], c.w)
+    wdata = _do_query(url, qargs)
+
+    if not wdata:
+        return None
+    ns = {'mb': 'http://musicbrainz.org/ns/mmd-2.0#'}
+    root = ET.fromstring(utf8_encode(wdata))
+    xquery = "./mb:release-group-list/mb:release-group[@type='Album']"
+    alist = root.findall(xquery, namespaces=ns)
+    if len(alist) == 0:
+        return None
+    albums = [
+        {
+            "artist": found_artist["name"],
+            "title": album.find('mb:title', namespaces=ns).text,
+            "aid": album.get('id'),
+            "year": album.find('mb:first-release-date', namespaces=ns).text
+            if album.find('mb:first-release-date', namespaces=ns) is not None
+            else '-',
+        } for album in alist]
+
+    return sorted(albums, key=lambda k: k['year'])
+
+
+def _get_mb_album_releases(release_group_id):
+    """Get the releases of the specified release group"""
+    url = "http://musicbrainz.org/ws/2/release-group/"+release_group_id+"/"
+    qargs = {
+        "inc": "releases+artists+media"
+    }
+
+    wdata = _do_query(url, qargs)
+
+    if not wdata:
+        return None
+    ns = {'mb': 'http://musicbrainz.org/ns/mmd-2.0#'}
+    root = ET.fromstring(utf8_encode(wdata))
+    rlist = root.findall(".//mb:release-list/mb:release", namespaces=ns)
+    xquery_name = ".//mb:artist-credit/mb:name-credit/mb:artist//mb:name"
+    artist_name = root.find(xquery_name,
+                        namespaces=ns).text
+    if len(rlist) == 0:
+        return None
+    count_query = "mb:medium-list/mb:medium/mb:track-list[@count]"
+
+    returnlist = []
+    for release in rlist:
+        # Using find instead of findall to match the behaviour of album search
+        track_counts = [release.find(count_query, namespaces=ns)]
+        track_count = max([int(count.get('count')) for count in track_counts])
+        returnlist.append({
+            "aid": release.get('id'),
+            "track_count": track_count,
+            "title": release.find("mb:title", namespaces=ns).text,
+            "country": release.find("mb:country", namespaces=ns).text
+                if release.find("mb:country", namespaces=ns) is not None
+                else '-',
+            "year": release.find("mb:date", namespaces=ns).text
+                if release.find("mb:date", namespaces=ns) is not None
+                else '-',
+            "artist": artist_name
+        })
+    return returnlist
 
 
 def _get_mb_album(albumname, **kwa):
@@ -2074,6 +2306,7 @@ def main():
         'quits': r'(?:q|quit|exit)$',
         'search': r'(?:search|\.|/)\s*(.{0,500})',
         'search_album': r'album\s*(.{0,500})',
+        'search_artist': r'artist\s*(.{0,500})',
         'play_pl': r'play\s*(%s|\d+)$' % word,
         'download': r'(?:d|dl|download)\s*(\d{1,4})$',
         'nextprev': r'(n|p)$',
