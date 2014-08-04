@@ -1222,14 +1222,14 @@ def search_artist(term, page=1, splash=True, bitrate=g.album_tracks_bitrate):
         return
     artist_index = 0
     if len(artists) > 1:
-        fmtrow = "%s%-6s %-12s %-31s%s\n"
+        fmtrow = "%s%-6s %-32s %-36s%s\n"
         head = (c.ul, "Item", "Name", "Description", c.w)
         artist_string = "\n" + (fmtrow % head) + "\n"
-        fmtrow = "%-6s %-12s %-31s"
+        fmtrow = "%-6s %-32s %-36s"
         artist_string += "\n".join(fmtrow % (
                                 str(aindex),
-                                uea_trunc(11, artist["name"]),
-                                uea_trunc(30, artist["disamb"])) for aindex, artist in enumerate(artists, 1))
+                                uea_trunc(31, artist["name"]),
+                                uea_trunc(35, artist["disamb"])) for aindex, artist in enumerate(artists, 1))
         artist_index = _query_for_index(artist_string,
                                         len(artists),
                                         title=("Which '%s'" % term))
@@ -1245,14 +1245,14 @@ def search_artist(term, page=1, splash=True, bitrate=g.album_tracks_bitrate):
         return
     index = 0
     if len(albums) > 1:
-        fmtrow = "%s%-6s %-12s %-31s%s\n"
+        fmtrow = "%s%-6s %-12s %-56s%s\n"
         head = (c.ul, "Item", "Year", "Title", c.w)
         album_string = "\n" + (fmtrow % head) + "\n"
-        fmtrow = "%-6s %-12s %-31s"
+        fmtrow = "%-6s %-12s %-56s"
         album_string += "\n".join([fmtrow % (
                                   str(album_index),
                                   album['year'],
-                                  uea_trunc(30, album["title"]))
+                                  uea_trunc(55, album["title"]))
                         for album_index, album in
                         enumerate(albums, 1)])
         index = _query_for_index(album_string,
@@ -1269,16 +1269,16 @@ def search_artist(term, page=1, splash=True, bitrate=g.album_tracks_bitrate):
 
     index = 0
     if len(album_releases) > 1:
-        fmtrow = "%s%-6s %-6s %-6s %-12s %-31s%s\n"
+        fmtrow = "%s%-6s %-6s %-6s %-12s %-41s%s\n"
         head = (c.ul, "Item", "Tracks", "Country", "Released", "Title" , c.w)
         releases_string = "\n" + (fmtrow % head) + "\n"
-        fmtrow = "%-6s %-7s %-6s %-12s %-31s"
+        fmtrow = "%-6s %-7s %-6s %-12s %-41s"
         releases_string += "\n".join([fmtrow % (
                                     str(release_index),
                                     str(release['track_count']),
                                     release["country"],
                                     release['year'],
-                                    uea_trunc(30, release["title"]))
+                                    uea_trunc(40, release["title"]))
                                     for release_index, release in
                                       enumerate(album_releases, 1)
                                     ])
