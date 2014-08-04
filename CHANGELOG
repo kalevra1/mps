@@ -2,6 +2,7 @@ Version 0.20.17
 Development version - not yet released
 
  - Fix downloading issue with FAT32 filesystem (#63)
+ - Added album releases search by artist (Sijmen) (#65)
 
 -------------------------------------------------------------------------------
 Version 0.20.16
