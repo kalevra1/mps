@@ -1204,9 +1204,62 @@ def show_message(message, col=c.r, update=False):
         screen_update()
 
 
+def search_artist(term, page=1, splash=True, bitrate=g.album_tracks_bitrate):
+    """Search for artist albums"""
+    if not term:
+        show_message("Enter arist name:", c.g, update=True)
+        term = xinput("> ")
+
+        if not term or len(term) < 2:
+            g.message = c.r + "Not enough input!" + c.w
+            g.content = generate_songlist_display()
+            return
+    artists = _get_mb_artist(term)
+    if len(artists) == 0:
+        show_message("No artis found with the name '%s'" % term)
+        return
+    artist_index = 0
+    if len(artists) > 1:
+        artist_string = "\n".join(artist["disamb"] for artist in artists)
+        artist_index = request_album_index(artist_string, len(artists))
+    artist = artists[artist_index]
+
+    albums = _get_mb_album_list(artist)
+    if not albums:
+        show_message("No albums found for '%s'!" % term)
+        return
+    album_string = "\n".join([str(album_index)+":\t"+album['year']+' <> '+album["title"] for album_index, album in enumerate(albums, 1)])
+    # album_string = [str(index)+": "+text for index, text in enumerate(album_string)]
+    index = request_album_index(album_string, len(albums))
+
+    album_releases = _get_mb_album_releases(albums[index]['aid'])
+    releases_string = "\n".join([str(release_index)+":\t"+release["country"]+" <> "+release['year']+' <> '+release["title"] for release_index, release in enumerate(album_releases, 1)])
+
+    index = request_album_index(releases_string, len(album_releases))
+    play_album(album_releases[index])
+
+    # show_message(index)
+
+
+def request_album_index(album_string, total_count, error=False):
+    show_message("Known albums:\n%s\n\n" % album_string)
+    screen_update()
+    if error:
+        show_message("You must enter a numeric value smaller than %d" % total_count + 1)
+    prompt = "Which one to play? [1-%d] > " % total_count
+    xprint(prompt, end="")
+    index = xinput().strip()
+    try:
+        index = int(index)
+        if index > total_count:
+            return request_album_index(album_string, total_count, True)
+        return index-1
+    except ValueError:
+        return request_album_index(album_string, total_count, True)
+
+
 def search_album(term, page=1, splash=True, bitrate=g.album_tracks_bitrate):
     """Search for albums. """
-
     #pylint: disable=R0914,R0912
     if not term:
         show_message("Enter album name:", c.g, update=True)
@@ -1245,11 +1298,16 @@ def search_album(term, page=1, splash=True, bitrate=g.album_tracks_bitrate):
         if not album:
             show_message("Album '%s' by '%s' not found!" % (term, artistentry))
             return
+    if album:
+        play_album(album, page)
 
+
+def play_album(album, page=1):
     title, artist = album['title'], album['artist']
     mb_tracks = _get_mb_tracks(album['aid'])
 
     if not mb_tracks:
+        # show_message(str(album))
         show_message("Album '%s' by '%s' has 0 tracks!" % (title, artist))
         return
 
@@ -1347,6 +1405,103 @@ def _match_tracks(artist, title, bitrate, mb_tracks):
                "%s%s]\n" % (c.y, s['singer'], s['song'], c.w, s['duration'],
                             s['listrate'], cc, score, c.w))
         yield s
+
+
+def _get_mb_artist(artist, **kwa):
+    """ Return artist from musicbrainz """
+
+    url = "http://musicbrainz.org/ws/2/artist/"
+    qargs = {"query": artist}
+    g.message = "Artist search for '%s%s%s'" % (c.y, artist, c.w)
+    wdata = _do_query(url, qargs)
+
+    if not wdata:
+        return None
+
+    ns = {
+        'mb': 'http://musicbrainz.org/ns/mmd-2.0#',
+        'sc': 'http://musicbrainz.org/ns/ext#-2.0'
+    }
+    root = ET.fromstring(utf8_encode(wdata))
+    rlist = root.find("mb:artist-list", namespaces=ns)
+
+    if int(rlist.get('count')) == 0:
+        return None
+
+    artists = rlist.findall("mb:artist", namespaces=ns)
+    alist = []
+    for index, xml_artist in enumerate(artists, 1):
+        if int(xml_artist.get('{http://musicbrainz.org/ns/ext#-2.0}score')) > 85:
+            name = xml_artist.find("mb:name", namespaces=ns).text
+            disamb = str(index)+":\t"+name
+            if xml_artist.find("mb:disambiguation", namespaces=ns) is not None:
+                disamb += ' <> '+xml_artist.find("mb:disambiguation", namespaces=ns).text
+            alist.append({
+                "name": name,
+                "artist": name,
+                "disamb": disamb,
+                "aid": xml_artist.get('id')
+            })
+    return alist
+
+
+def _get_mb_album_list(artist):
+    url = "http://musicbrainz.org/ws/2/release-group/"
+    found_artist = artist  # _get_mb_artist(artist)
+    if not found_artist:
+        return None
+    qargs = {
+        "artist": found_artist["aid"],
+        "type": "album",
+        "limit": "100"
+    }
+    g.message = "Artist album search for '%s%s%s'" % (c.y, found_artist["artist"], c.w)
+    wdata = _do_query(url, qargs)
+
+    if not wdata:
+        return None
+    ns = {'mb': 'http://musicbrainz.org/ns/mmd-2.0#'}
+    root = ET.fromstring(utf8_encode(wdata))
+    alist = root.findall("./mb:release-group-list/mb:release-group[@type='Album']", namespaces=ns)
+    if len(alist) == 0:
+        return None
+    albums = [
+        {
+            "artist": found_artist["name"],
+            "title": album.find('mb:title', namespaces=ns).text,
+            "aid": album.get('id'),
+            "year": album.find('mb:first-release-date', namespaces=ns).text if album.find('mb:first-release-date', namespaces=ns) is not None else '-',
+        } for album in alist]
+
+    return sorted(albums, key=lambda k: k['year'])
+
+
+def _get_mb_album_releases(release_group_id):
+    url = "http://musicbrainz.org/ws/2/release-group/"+release_group_id+"/"
+    qargs = {
+        "inc": "releases+artists"
+    }
+
+    wdata = _do_query(url, qargs)
+
+    if not wdata:
+        return None
+    ns = {'mb': 'http://musicbrainz.org/ns/mmd-2.0#'}
+    root = ET.fromstring(utf8_encode(wdata))
+    rlist = root.findall(".//mb:release-list/mb:release", namespaces=ns)
+    artist_name = root.find(".//mb:artist-credit/mb:name-credit/mb:artist//mb:name",
+                        namespaces=ns).text
+    if len(rlist) == 0:
+        return None
+    return [
+        {
+            "aid": release.get('id'),
+            "title": release.find("mb:title", namespaces=ns).text,
+            "country": release.find("mb:country", namespaces=ns).text,
+            "year": release.find("mb:date", namespaces=ns).text,
+            "artist": artist_name
+        } for release in rlist
+    ]
 
 
 def _get_mb_album(albumname, **kwa):
@@ -2074,6 +2229,7 @@ def main():
         'quits': r'(?:q|quit|exit)$',
         'search': r'(?:search|\.|/)\s*(.{0,500})',
         'search_album': r'album\s*(.{0,500})',
+        'search_artist': r'artist\s*(.{0,500})',
         'play_pl': r'play\s*(%s|\d+)$' % word,
         'download': r'(?:d|dl|download)\s*(\d{1,4})$',
         'nextprev': r'(n|p)$',
