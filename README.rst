@@ -13,7 +13,7 @@ mps
 Features
 --------
 - Search and stream music
-- Search albums or single tracks
+- Search by album, artist or track name
 - Create playlists
 - Download tracks
 - Works with Python 2.7+ and 3.3+

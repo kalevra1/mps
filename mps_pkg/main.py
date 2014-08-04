@@ -479,7 +479,8 @@ You can enter an artist/song name to search whenever the program is expecting
 text input. Searches must be prefixed with either a {2}.{1} or {2}/{1} \
 character.
 
-Search for albums by entering {2}album [albumname]{1}
+Search by album/artist by entering {2}album [albumname]{1} or {2}artist [artist\
+name]{1}
 
 When a list of songs is displayed, you can use the following commands:
 
