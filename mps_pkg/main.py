@@ -76,7 +76,8 @@ else:
 utf8_encode = lambda x: x.encode("utf8") if type(x) == uni else x
 utf8_decode = lambda x: x.decode("utf8") if type(x) == byt else x
 mswin = os.name == "nt"
-not_utf8_environment = mswin or not "UTF-8" in os.environ.get("LANG", "")
+not_utf8_environment = (mswin or "UTF-8" not in os.environ.get("LANG", "") or
+                        "UTF-8" not in sys.stdout.encoding)
 member_var = lambda x: not(x.startswith("__") or callable(x))
 zcomp = lambda v: zlib.compress(pickle.dumps(v, protocol=2), 9)
 zdecomp = lambda v: pickle.loads(zlib.decompress(v))
