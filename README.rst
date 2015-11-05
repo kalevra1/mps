@@ -1,11 +1,11 @@
 mps
 ===
 
-.. image:: http://badge.fury.io/py/mps.png
+.. image:: http://badge.fury.io/py/mps.svg
     :target: https://pypi.python.org/pypi/mps
-.. image:: https://pypip.in/d/mps/badge.png
+.. image:: https://img.shields.io/pypi/dm/mps.svg
     :target: https://pypi.python.org/pypi/mps
-.. image:: https://pypip.in/wheel/mps/badge.png
+.. image:: https://img.shields.io/pypi/wheel/mps.svg
     :target: http://pythonwheels.com/
     :alt: Wheel Status
 
