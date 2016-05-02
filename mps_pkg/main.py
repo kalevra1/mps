@@ -482,6 +482,8 @@ character.
 Search for albums by entering {2}album [albumname]{1}
 
 When a list of songs is displayed, you can use the following commands:
+{2}n{1} to show next 20 results
+{2}p{1} to show previous 20 results
 
 {0}Downloading{1}
 {2}d 3{1} to download song 3
