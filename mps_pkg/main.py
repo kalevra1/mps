@@ -573,7 +573,7 @@ Released under the GPLv3 license
     'advise add_': (c.g, c.w),
     'advise search': 'Search for songs and then use *add* to add them',
     'advise search_': (c.g, c.w),
-    'no data': 'Error fetching data. Perhaps http://pleer.com is down.\n*&&*',
+    'no data': 'Error fetching data. Perhaps http://pleer.net is down.\n*&&*',
     'no data_': (c.r, c.w),
     'use dot': 'Start your query with a *.* to perform a search',
     'use dot_': (c.g, c.w),
@@ -912,7 +912,7 @@ def get_stream(song, force=False):
     """ Return the url for a song. """
 
     if not "track_url" in song or force:
-        url = 'http://pleer.com/site_api/files/get_url?action=download&id=%s'
+        url = 'http://pleer.net/site_api/files/get_url?action=download&id=%s'
         url = url % song['link']
 
         try:
@@ -1110,7 +1110,7 @@ def top(period, page=1):
     period = period or "w"
     periods = "_ w 3m 6m year all".split()
     period = periods.index(period)
-    url = ("http://pleer.com/en/gettopperiod?target1=%s&target2=r1&select=e&"
+    url = ("http://pleer.net/en/gettopperiod?target1=%s&target2=r1&select=e&"
            "page_ru=1&page_en=%s")
     url = url % ("e%s" % period, page)
     tps = "past week,past 3 months,past 6 months,past year,all time".split(",")
@@ -1145,7 +1145,7 @@ def search(term, page=1, splash=True):
 
     else:
         original_term = term
-        url = "http://pleer.com/search"
+        url = "http://pleer.net/search"
         query = {"target": "tracks", "page": page}
 
         if "+best" in term:
@@ -1319,7 +1319,7 @@ def _match_tracks(artist, title, bitrate, mb_tracks):
     title_artist_str = c.g + title + c.w, c.g + artist + c.w
     xprint("\nSearching for %s by %s" % title_artist_str)
     xprint("Attempting to match bitrate of %s kbps\n\n" % bitrate)
-    url = "http://pleer.com/search"
+    url = "http://pleer.net/search"
     dtime = lambda x: time.strftime('%M:%S', time.gmtime(int(x)))
 
     # do matching
@@ -2009,7 +2009,7 @@ def nextprev(np):
 def plist(parturl):
     """ Import playlist created on website. """
 
-    url = "http://pleer.com/en/" + parturl
+    url = "http://pleer.net/en/" + parturl
 
     try:
         page = urlopen(url).read().decode("utf8")
